@@ -4,6 +4,7 @@ using DevExpress.ExpressApp.Actions;
 using DevExpress.ExpressApp.Security;
 using DevExpress.Persistent.BaseImpl.EF.PermissionPolicy;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using RoleChooser.BusinessObjects;
 using RoleChooser.Security;
 using RoleChooser.Services;
@@ -14,6 +15,7 @@ public class RoleChooserWindowController : WindowController
 {
     private PopupWindowShowAction _chooseRolesAction;
     private IActiveRoleFilter? _roleFilter;
+    private ILogger<RoleChooserWindowController>? _logger;
 
     public RoleChooserWindowController()
     {
@@ -33,11 +35,14 @@ public class RoleChooserWindowController : WindowController
     {
         base.OnActivated();
         _roleFilter = Application.ServiceProvider.GetService<IActiveRoleFilter>();
+        _logger = Application.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger<RoleChooserWindowController>();
     }
 
     private void ChooseRolesAction_CustomizePopupWindowParams(object sender, CustomizePopupWindowParamsEventArgs e)
     {
         if (_roleFilter == null) return;
+
+        _logger?.LogInformation("CustomizePopupWindowParams — {Count} available roles", _roleFilter.AvailableRoles.Count);
 
         var os = Application.CreateObjectSpace(typeof(ActiveRoleSelection));
         var items = new BindingList<ActiveRoleSelection>();
@@ -49,6 +54,7 @@ public class RoleChooserWindowController : WindowController
             item.RoleName = name;
             item.IsActive = _roleFilter.IsRoleActive(id);
             items.Add(item);
+            _logger?.LogDebug("  Role: {RoleName} ({RoleId}) — IsActive: {IsActive}", name, id, item.IsActive);
         }
 
         // NonPersistentObjectSpace needs ObjectsGetting to provide objects for ListView
@@ -80,18 +86,27 @@ public class RoleChooserWindowController : WindowController
             }
         }
 
+        _logger?.LogInformation("Execute — {Count} roles selected: [{RoleIds}]",
+            selectedRoleIds.Count, string.Join(", ", selectedRoleIds));
+
         _roleFilter.SetActiveRoles(selectedRoleIds);
 
         // Reload permissions so changes take effect immediately
         if (Application.Security is ISecurityStrategyBase securityStrategy)
         {
             securityStrategy.ReloadPermissions();
+            _logger?.LogInformation("Execute — ReloadPermissions called");
+        }
+        else
+        {
+            _logger?.LogWarning("Execute — No ISecurityStrategyBase found, permissions NOT reloaded");
         }
 
         // Refresh the current view to reflect new permissions
         if (Frame?.View != null)
         {
             Frame.View.ObjectSpace.Refresh();
+            _logger?.LogInformation("Execute — View refreshed ({ViewId})", Frame.View.Id);
         }
     }
 
@@ -99,5 +114,6 @@ public class RoleChooserWindowController : WindowController
     {
         base.OnDeactivated();
         _roleFilter = null;
+        _logger = null;
     }
 }

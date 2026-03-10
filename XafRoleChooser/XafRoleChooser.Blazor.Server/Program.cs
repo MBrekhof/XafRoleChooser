@@ -3,6 +3,7 @@ using DevExpress.ExpressApp.Blazor.DesignTime;
 using DevExpress.ExpressApp.Blazor.Services;
 using DevExpress.ExpressApp.Design;
 using DevExpress.ExpressApp.Utils;
+using Serilog;
 using System.Reflection;
 
 namespace XafRoleChooser.Blazor.Server
@@ -49,6 +50,17 @@ namespace XafRoleChooser.Blazor.Server
         }
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseSerilog((context, services, configuration) => configuration
+                    .ReadFrom.Configuration(context.Configuration)
+                    .Enrich.FromLogContext()
+                    .MinimumLevel.Debug()
+                    .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+                    .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
+                    .MinimumLevel.Override("DevExpress", Serilog.Events.LogEventLevel.Warning)
+                    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
+                    .WriteTo.File("logs/xafrolechooser-.log",
+                        rollingInterval: RollingInterval.Day,
+                        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"))
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();

@@ -37,26 +37,38 @@ public sealed class RoleChooserModule : ModuleBase
     private void Application_SetupComplete(object? sender, EventArgs e)
     {
         var app = (XafApplication)sender!;
+        var loggerFactory = app.ServiceProvider.GetService<ILoggerFactory>();
+        var logger = loggerFactory?.CreateLogger<RoleChooserModule>();
 
-        // Warn if PermissionsReloadMode is not NoCache
+        // Set static logger on RoleChooserUserBase for the Roles override
+        RoleChooserUserBase.SetLogger(loggerFactory);
+
         if (app.Security is SecurityStrategy strategy)
         {
+            logger?.LogInformation("RoleChooserModule SetupComplete — PermissionsReloadMode: {Mode}", strategy.PermissionsReloadMode);
+
             if (strategy.PermissionsReloadMode != PermissionsReloadMode.NoCache)
             {
-                var logger = app.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger<RoleChooserModule>();
                 logger?.LogWarning(
                     "RoleChooserModule requires PermissionsReloadMode.NoCache for live role switching. " +
                     "Current mode is {Mode}. Role changes may not take effect until re-login.",
                     strategy.PermissionsReloadMode);
             }
         }
+        else
+        {
+            logger?.LogInformation("RoleChooserModule SetupComplete — no SecurityStrategy found");
+        }
     }
 
     private void Application_LoggedOn(object? sender, LogonEventArgs e)
     {
         var app = (XafApplication)sender!;
+        var logger = app.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger<RoleChooserModule>();
         var filter = app.ServiceProvider.GetRequiredService<IActiveRoleFilter>();
         var userId = (Guid)app.Security.UserId;
+
+        logger?.LogInformation("Application_LoggedOn — UserId: {UserId}", userId);
 
         // Ensure filter accessor is null so the Roles override returns base.Roles (unfiltered)
         RoleFilterAccessor.Current = null;
@@ -97,9 +109,12 @@ public sealed class RoleChooserModule : ModuleBase
                     var roleId = reader.GetGuid(0);
                     var roleName = reader.GetString(1);
 
+                    logger?.LogDebug("Loaded role from SQL — Id: {RoleId}, Name: {RoleName}", roleId, roleName);
+
                     if (string.Equals(roleName, AlwaysActiveRoleName, StringComparison.OrdinalIgnoreCase))
                     {
                         alwaysActiveRoleId = roleId;
+                        logger?.LogDebug("Role '{RoleName}' ({RoleId}) is the always-active role", roleName, roleId);
                     }
                     else
                     {
@@ -113,10 +128,15 @@ public sealed class RoleChooserModule : ModuleBase
             }
         }
 
+        logger?.LogInformation("Loaded {TotalRoles} available roles (plus always-active: {AlwaysActiveId})",
+            availableRoles.Count, alwaysActiveRoleId);
+
         filter.Initialize(alwaysActiveRoleId, availableRoles);
 
         // NOW set the ambient accessor — subsequent Roles calls will be filtered
         RoleFilterAccessor.Current = filter;
+
+        logger?.LogInformation("RoleFilterAccessor.Current set — filter initialized for user {UserId}", userId);
     }
 
     public override IEnumerable<ModuleUpdater> GetModuleUpdaters(IObjectSpace objectSpace, Version versionFromDB)

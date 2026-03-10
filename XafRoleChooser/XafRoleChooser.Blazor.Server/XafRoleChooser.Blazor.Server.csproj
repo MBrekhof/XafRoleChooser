@@ -27,9 +27,12 @@
     <PackageReference Include="DevExpress.ExpressApp.Office.Blazor" Version="25.2.3" />
     <PackageReference Include="DevExpress.ExpressApp.Validation" Version="25.2.3" />
     <PackageReference Include="DevExpress.ExpressApp.Validation.Blazor" Version="25.2.3" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.9.0" />
-    
+
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\XafRoleChooser.Module\XafRoleChooser.Module.csproj" />
