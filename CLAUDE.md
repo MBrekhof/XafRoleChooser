@@ -34,15 +34,27 @@ dotnet test tests/XafRoleChooser.Playwright/
 
 Security filtering works by overriding `PermissionPolicyUser.Roles` (virtual) in `RoleChooserUserBase`. The override filters roles via `RoleFilterAccessor` (`AsyncLocal<IActiveRoleFilter>`). With `PermissionsReloadMode.NoCache`, permissions are re-evaluated per DbContext using only active roles.
 
-Key flow: Login → `RoleChooserModule.LoggedOn` initializes filter → User clicks "Active Roles" toolbar button → PopupWindowShowAction shows role checklist → On Accept, `IActiveRoleFilter.SetActiveRoles()` + `ReloadPermissions()` → Roles property returns filtered set → Permissions updated live.
+Key flow: Login → `RoleChooserModule.LoggedOn` initializes filter → User clicks "Active Roles" (Tools tab) → PopupWindowShowAction shows role list with row-selection checkboxes → On Accept, selected rows = active roles via `PopupWindowViewSelectedObjects` → `SetActiveRoles()` + `ReloadPermissions()` → Close all tabs → Recreate navigation → Navigate to startup item.
+
+Note: XAF Blazor renders booleans as display-only SVGs in popup ListViews, so inline editing doesn't work. Row selection is used instead. `RoleFilterAccessor` uses `ConcurrentDictionary<Guid, IActiveRoleFilter>` (AsyncLocal fails in Blazor Server).
 
 Consuming apps must: (1) inherit user from `RoleChooserUserBase`, (2) call `services.AddRoleChooser()`, (3) register `.Add<RoleChooserModule>()`.
 
+## Demo Business Entities
+
+The demo app includes sample entities with role-based permissions to demonstrate role switching:
+
+- **Company** (Company group) — accessible to all roles
+- **Employee** (HR group) — HR Manager role
+- **Project** (Projects group) — Project Manager, Sales roles
+- **Order/OrderLine** (Sales group) — Sales, Finance roles
+- **Invoice** (Finance group) — Finance, Sales roles
+
 ## Test Users (empty passwords)
 
-- **Admin**: Default, Administrators, Manager, Reports
+- **Admin**: Administrators, HR Manager, Project Manager, Sales, Finance
 - **User**: Default only
-- **MultiRole**: Default, Administrators, Manager, DataEntry, Reports
+- **MultiRole**: Default, Administrators, HR Manager, Project Manager, Sales, Finance
 
 ## Database
 

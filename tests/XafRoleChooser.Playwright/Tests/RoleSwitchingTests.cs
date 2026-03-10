@@ -25,12 +25,16 @@ public class RoleSwitchingTests : PageTest
         await _mainPage.WaitForXafReady();
     }
 
-    private async Task DeactivateRoles(params string[] roleNames)
+    /// <summary>
+    /// Opens the role chooser popup, selects only the specified roles via row selection checkboxes, and accepts.
+    /// Roles NOT in the list will be unselected (deactivated).
+    /// </summary>
+    private async Task SetActiveRoles(params string[] roleNames)
     {
         await _mainPage.ClickActiveRolesButton();
         foreach (var role in roleNames)
         {
-            await _mainPage.ToggleRoleInChooser(role);
+            await _mainPage.SelectRoleInChooser(role);
         }
         await _mainPage.AcceptRoleChooser();
         await _mainPage.WaitForNavigationRefresh();
@@ -39,18 +43,11 @@ public class RoleSwitchingTests : PageTest
     [Test]
     public async Task RoleSwitch_HRManagerOnly_ShowsHRNavigation()
     {
-        // Arrange: Login as Admin (all roles active by default)
         await LoginAsAdmin();
 
-        // Act: Deactivate all roles except HR Manager
-        await DeactivateRoles(
-            TestConstants.RoleAdministrators,
-            TestConstants.RoleProjectManager,
-            TestConstants.RoleSales,
-            TestConstants.RoleFinance
-        );
+        // Select only HR Manager role
+        await SetActiveRoles(TestConstants.RoleHRManager);
 
-        // Assert: HR and Company visible, others hidden
         Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavHR), Is.True,
             "HR navigation should be visible with HR Manager role");
         Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavCompany), Is.True,
@@ -66,18 +63,11 @@ public class RoleSwitchingTests : PageTest
     [Test]
     public async Task RoleSwitch_SalesOnly_ShowsSalesNavigation()
     {
-        // Arrange: Login as Admin (all roles active by default)
         await LoginAsAdmin();
 
-        // Act: Deactivate all roles except Sales
-        await DeactivateRoles(
-            TestConstants.RoleAdministrators,
-            TestConstants.RoleHRManager,
-            TestConstants.RoleProjectManager,
-            TestConstants.RoleFinance
-        );
+        // Select only Sales role
+        await SetActiveRoles(TestConstants.RoleSales);
 
-        // Assert: Sales, Company, Projects visible; HR and Finance hidden
         Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavSales), Is.True,
             "Sales navigation should be visible with Sales role");
         Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavCompany), Is.True,
@@ -93,18 +83,11 @@ public class RoleSwitchingTests : PageTest
     [Test]
     public async Task RoleSwitch_FinanceOnly_ShowsFinanceNavigation()
     {
-        // Arrange: Login as Admin (all roles active by default)
         await LoginAsAdmin();
 
-        // Act: Deactivate all roles except Finance
-        await DeactivateRoles(
-            TestConstants.RoleAdministrators,
-            TestConstants.RoleHRManager,
-            TestConstants.RoleProjectManager,
-            TestConstants.RoleSales
-        );
+        // Select only Finance role
+        await SetActiveRoles(TestConstants.RoleFinance);
 
-        // Assert: Finance, Sales, Company visible; HR and Projects hidden
         Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavFinance), Is.True,
             "Finance navigation should be visible with Finance role");
         Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavSales), Is.True,
@@ -120,24 +103,15 @@ public class RoleSwitchingTests : PageTest
     [Test]
     public async Task RoleSwitch_ReactivateAdministrators_ShowsAllNavigation()
     {
-        // Arrange: Login as Admin (all roles active by default)
         await LoginAsAdmin();
 
-        // Act Step 1: Deactivate ALL roles
-        await DeactivateRoles(
-            TestConstants.RoleAdministrators,
-            TestConstants.RoleHRManager,
-            TestConstants.RoleProjectManager,
-            TestConstants.RoleSales,
-            TestConstants.RoleFinance
-        );
+        // Step 1: Deactivate all roles (select none)
+        await SetActiveRoles();
 
-        // Act Step 2: Reopen popup and reactivate only Administrators
-        await DeactivateRoles(TestConstants.RoleAdministrators); // toggles it back on
+        // Step 2: Reactivate only Administrators
+        await SetActiveRoles(TestConstants.RoleAdministrators);
 
-        // Assert: All navigation groups should be visible (Administrators has full access)
-        Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavCompany), Is.True,
-            "Company navigation should be visible with Administrators role");
+        // Administrators (IsAdministrative) gives access to all nav groups
         Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavHR), Is.True,
             "HR navigation should be visible with Administrators role");
         Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavProjects), Is.True,
@@ -151,19 +125,11 @@ public class RoleSwitchingTests : PageTest
     [Test]
     public async Task RoleSwitch_DeactivateAll_HidesAllNavigation()
     {
-        // Arrange: Login as Admin (all roles active by default)
         await LoginAsAdmin();
 
-        // Act: Deactivate ALL roles (only Default remains, which has no nav permissions)
-        await DeactivateRoles(
-            TestConstants.RoleAdministrators,
-            TestConstants.RoleHRManager,
-            TestConstants.RoleProjectManager,
-            TestConstants.RoleSales,
-            TestConstants.RoleFinance
-        );
+        // Select no roles (just open popup and accept)
+        await SetActiveRoles();
 
-        // Assert: All navigation groups should be hidden
         Assert.That(await _mainPage.IsNavGroupHidden(TestConstants.NavCompany), Is.True,
             "Company navigation should be hidden with no active roles");
         Assert.That(await _mainPage.IsNavGroupHidden(TestConstants.NavHR), Is.True,

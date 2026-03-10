@@ -115,11 +115,12 @@ The always-active role is never shown in the role chooser popup since the user c
 ## How It Works (Technical Details)
 
 1. **`RoleChooserUserBase`** overrides the virtual `Roles` property on `PermissionPolicyUser` to return only the roles that are currently marked as active.
-2. **`RoleFilterAccessor`** uses `AsyncLocal<IActiveRoleFilter>` to provide thread-safe ambient access to the current filter. This allows the entity (which has no access to DI) to read the filter state.
+2. **`RoleFilterAccessor`** uses a `ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by user ID to provide ambient access to the current filter. This allows the entity (which has no access to DI) to read the filter state. (AsyncLocal does not work reliably in Blazor Server due to async context switching.)
 3. **`RoleChooserModule`** hooks into `Application.LoggedOn` to initialize the filter with the user's assigned roles. All non-Default roles start as active.
-4. **`RoleChooserWindowController`** adds an "Active Roles" toolbar button that opens a popup with checkboxes for each non-Default role.
-5. When the user clicks **Apply**, the controller updates `IActiveRoleFilter` and calls `SecuritySystem.ReloadPermissions()`.
-6. With `PermissionsReloadMode.NoCache`, the security system re-reads the (now filtered) `Roles` property, and permissions are recalculated immediately.
+4. **`RoleChooserWindowController`** adds an "Active Roles" toolbar button (on the Tools tab) that opens a popup ListView. Roles are selected via **row-selection checkboxes** (not inline boolean editing — XAF Blazor renders booleans as display-only SVGs in popup ListViews).
+5. When the user clicks **OK/Accept**, the controller reads `PopupWindowViewSelectedObjects` to determine which roles are active, updates `IActiveRoleFilter`, and calls `SecuritySystem.ReloadPermissions()`.
+6. The controller then **closes all open tabs** (to prevent access to views the user no longer has permissions for) and **recreates navigation items** so the nav tree reflects the new permissions.
+7. With `PermissionsReloadMode.NoCache`, the security system re-reads the (now filtered) `Roles` property, and permissions are recalculated immediately.
 
 ## Architecture Diagram
 
@@ -148,15 +149,19 @@ Verify that `PermissionsReloadMode.NoCache` is set on your security strategy. Ch
 
 ### "Active Roles" button doesn't appear
 
-Ensure the `RoleChooserModule` is registered in your startup configuration (Step 4). Also verify the controller is not being filtered out by any custom controller-filtering logic in your application.
+The button is on the **Tools** tab in the XAF Blazor ribbon (not the Home tab). Ensure the `RoleChooserModule` is registered in your startup configuration (Step 4). Also verify the controller is not being filtered out by any custom controller-filtering logic in your application.
 
 ### User sees no roles in the chooser
 
 The always-active role (by default "Default") is intentionally hidden from the chooser UI. If the user only has the Default role assigned, the chooser popup will be empty. This is expected — assign additional roles to the user for them to appear.
 
+### Open tabs close on role switch
+
+This is by design. When the user changes active roles, all open tabs are closed to prevent access to views the user no longer has permissions for. The user is navigated back to the startup item.
+
 ### Roles revert after navigation
 
-This is expected behavior with `NoCache` mode — the `Roles` property is re-evaluated each time the security system checks permissions. Verify that `RoleFilterAccessor.Current` is being set correctly. This happens automatically during the `LoggedOn` event, so it should persist for the lifetime of the session. If it does not, check that `AddRoleChooser()` was called during service registration (Step 3).
+This is expected behavior with `NoCache` mode — the `Roles` property is re-evaluated each time the security system checks permissions. Verify that `RoleFilterAccessor` has the filter registered for the current user. This happens automatically during the `LoggedOn` event, so it should persist for the lifetime of the session. If it does not, check that `AddRoleChooser()` was called during service registration (Step 3).
 
 ## Running the Demo
 
@@ -168,7 +173,7 @@ docker compose up -d
 dotnet run --project XafRoleChooser/XafRoleChooser.Blazor.Server
 
 # Test users (all have empty passwords):
-# - Admin: has Default + Administrators + Manager + Reports roles
+# - Admin: has Administrators, HR Manager, Project Manager, Sales, Finance roles
 # - User: has Default role only
-# - MultiRole: has all roles (Default, Administrators, Manager, DataEntry, Reports)
+# - MultiRole: has Default + Administrators, HR Manager, Project Manager, Sales, Finance
 ```

@@ -8,29 +8,44 @@ public class MainPage : Infrastructure.XafPageBase
 
     public async Task<bool> IsLoggedIn()
     {
-        // Check for XAF main view indicators
-        var mainView = Page.Locator(".xaf-main-module, .view-content, #ContentPlaceHolder");
-        return await mainView.IsVisibleAsync();
+        var mainView = Page.Locator(".xaf-chrome, .xaf-tabbed-mdi");
+        return await mainView.First.IsVisibleAsync();
     }
 
     public async Task ClickActiveRolesButton()
     {
-        await Page.ClickAsync("button:has-text('Active Roles'), [data-action='ChooseActiveRoles']");
+        // The Active Roles button is on the Tools tab in the XAF Blazor ribbon
+        var toolsTab = Page.GetByText("Tools", new() { Exact = true }).First;
+        await toolsTab.ClickAsync();
+        await Page.WaitForTimeoutAsync(500);
+
+        await Page.Locator("button[data-action-name='Active Roles']").ClickAsync();
         await WaitForXafReady();
+    }
+
+    public async Task SelectRoleInChooser(string roleName)
+    {
+        // Scope to the popup modal to avoid matching background page elements
+        var popup = Page.Locator("dxbl-popup-root");
+        var row = popup.Locator($"tr:has-text('{roleName}')").First;
+        var selectionCell = row.Locator("td.dxbl-grid-selection-cell");
+        await selectionCell.ClickAsync();
+        await Page.WaitForTimeoutAsync(300);
     }
 
     public async Task<bool> IsRoleChooserPopupVisible()
     {
-        var popup = Page.Locator(".dxbs-popup, .dxbl-modal, .dx-popup-wrapper");
-        return await popup.IsVisibleAsync();
-    }
-
-    public async Task ToggleRoleInChooser(string roleName)
-    {
-        // Find the row with the role name and click its checkbox
-        var row = Page.Locator($"tr:has-text('{roleName}'), .dxbs-grid-row:has-text('{roleName}')");
-        var checkbox = row.Locator("input[type='checkbox'], .dxbs-checkbox");
-        await checkbox.ClickAsync();
+        // Check for the popup dialog title "Active Role Selection"
+        var title = Page.GetByText("Active Role Selection", new() { Exact = true });
+        try
+        {
+            await title.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
     }
 
     public async Task AcceptRoleChooser()
@@ -39,24 +54,12 @@ public class MainPage : Infrastructure.XafPageBase
         await WaitForXafReady();
     }
 
-    public async Task<bool> IsNavigationItemVisible(string itemName)
-    {
-        var navItem = Page.Locator($".xaf-navigation a:has-text('{itemName}'), .nav-item:has-text('{itemName}')");
-        return await navItem.IsVisibleAsync();
-    }
-
-    public async Task Logout()
-    {
-        await Page.ClickAsync("button:has-text('Log Off'), .xaf-logoff-button, a:has-text('Log Off')");
-        await WaitForXafReady();
-    }
-
     public async Task<bool> IsNavGroupVisible(string groupName, int timeoutMs = 5000)
     {
         try
         {
-            // XAF Blazor renders navigation items with various selectors
-            var navGroup = Page.Locator($"text='{groupName}'").First;
+            // Scope to xaf-accordion sidebar to avoid matching tab headers or content text
+            var navGroup = Page.Locator($".xaf-accordion >> text='{groupName}'").First;
             await navGroup.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
             return true;
         }
@@ -70,7 +73,7 @@ public class MainPage : Infrastructure.XafPageBase
     {
         try
         {
-            var navGroup = Page.Locator($"text='{groupName}'").First;
+            var navGroup = Page.Locator($".xaf-accordion >> text='{groupName}'").First;
             await navGroup.WaitForAsync(new() { State = WaitForSelectorState.Hidden, Timeout = timeoutMs });
             return true;
         }
@@ -82,9 +85,19 @@ public class MainPage : Infrastructure.XafPageBase
 
     public async Task WaitForNavigationRefresh()
     {
-        // After role switch, wait for navigation rebuild and page to settle
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
         await WaitForXafReady();
         await Page.WaitForTimeoutAsync(1000);
+    }
+
+    public async Task DebugScreenshot(string name)
+    {
+        await Page.ScreenshotAsync(new() { Path = $"C:/Projects/XafRoleChooser/debug_{name}.png", FullPage = true });
+    }
+
+    public async Task Logout()
+    {
+        await Page.ClickAsync("button:has-text('Log Off'), .xaf-logoff-button, a:has-text('Log Off')");
+        await WaitForXafReady();
     }
 }

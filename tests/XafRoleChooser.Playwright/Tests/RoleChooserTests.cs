@@ -25,8 +25,12 @@ public class RoleChooserTests : PageTest
         await _loginPage.Login(TestConstants.AdminUser);
         await _mainPage.WaitForXafReady();
 
-        // The Active Roles button should be visible in the toolbar
-        var button = Page.Locator("button:has-text('Active Roles'), [data-action='ChooseActiveRoles']");
+        // The Active Roles button is on the Tools tab
+        var toolsTab = Page.GetByText("Tools", new() { Exact = true }).First;
+        await toolsTab.ClickAsync();
+        await Page.WaitForTimeoutAsync(500);
+
+        var button = Page.Locator("button[data-action-name='Active Roles']");
         await button.WaitForAsync(new() { Timeout = TestConstants.DefaultTimeout });
         Assert.That(await button.IsVisibleAsync(), Is.True);
     }
@@ -67,7 +71,7 @@ public class RoleChooserTests : PageTest
         await _mainPage.WaitForXafReady();
 
         await _mainPage.ClickActiveRolesButton();
-        await _mainPage.ToggleRoleInChooser("Administrators");
+        await _mainPage.SelectRoleInChooser("Administrators");
         await _mainPage.AcceptRoleChooser();
 
         // After activating the admin role, admin navigation items should be visible
@@ -84,13 +88,13 @@ public class RoleChooserTests : PageTest
 
         // First activate a role
         await _mainPage.ClickActiveRolesButton();
-        await _mainPage.ToggleRoleInChooser("Administrators");
+        await _mainPage.SelectRoleInChooser("Administrators");
         await _mainPage.AcceptRoleChooser();
         await _mainPage.WaitForXafReady();
 
         // Then deactivate it
         await _mainPage.ClickActiveRolesButton();
-        await _mainPage.ToggleRoleInChooser("Administrators");
+        await _mainPage.SelectRoleInChooser("Administrators");
         await _mainPage.AcceptRoleChooser();
         await _mainPage.WaitForXafReady();
 
@@ -106,7 +110,7 @@ public class RoleChooserTests : PageTest
 
         // Activate a role
         await _mainPage.ClickActiveRolesButton();
-        await _mainPage.ToggleRoleInChooser("Administrators");
+        await _mainPage.SelectRoleInChooser("Administrators");
         await _mainPage.AcceptRoleChooser();
         await _mainPage.WaitForXafReady();
 

@@ -70,7 +70,8 @@ public class RoleChooserWindowController : WindowController
             };
         }
 
-        e.View = Application.CreateListView(os, typeof(ActiveRoleSelection), true);
+        var listView = Application.CreateListView(os, typeof(ActiveRoleSelection), true);
+        e.View = listView;
         e.DialogController.SaveOnAccept = false;
     }
 
@@ -78,16 +79,14 @@ public class RoleChooserWindowController : WindowController
     {
         if (_roleFilter == null) return;
 
+        // Use row selection (checkboxes in the left column) to determine active roles
         var selectedRoleIds = new List<Guid>();
-        foreach (ActiveRoleSelection item in e.PopupWindowView.ObjectSpace.GetObjects<ActiveRoleSelection>())
+        foreach (ActiveRoleSelection item in e.PopupWindowViewSelectedObjects)
         {
-            if (item.IsActive)
-            {
-                selectedRoleIds.Add(item.RoleId);
-            }
+            selectedRoleIds.Add(item.RoleId);
         }
 
-        _logger?.LogInformation("Execute — {Count} roles selected: [{RoleIds}]",
+        _logger?.LogInformation("Execute — {Count} roles selected via row selection: [{RoleIds}]",
             selectedRoleIds.Count, string.Join(", ", selectedRoleIds));
 
         _roleFilter.SetActiveRoles(selectedRoleIds);
@@ -102,6 +101,9 @@ public class RoleChooserWindowController : WindowController
         {
             _logger?.LogWarning("Execute — No ISecurityStrategyBase found, permissions NOT reloaded");
         }
+
+        // Close all open tabs to prevent access to views the user no longer has permission for
+        CloseAllTabs();
 
         // Recreate navigation items so the nav tree reflects the new permissions
         var navController = Frame?.GetController<ShowNavigationItemController>();
@@ -127,6 +129,33 @@ public class RoleChooserWindowController : WindowController
                 _logger?.LogInformation("Execute — View refreshed ({ViewId})", Frame.View.Id);
             }
         }
+    }
+
+    /// <summary>
+    /// Closes all open tabs in the tabbed MDI template.
+    /// Uses reflection to stay platform-agnostic (no Blazor/WinForms dependency).
+    /// </summary>
+    private void CloseAllTabs()
+    {
+        var template = Window?.Template;
+        if (template == null) return;
+
+        var templateType = template.GetType();
+        var childProp = templateType.GetProperty("ChildTemplates",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+        var closeMethod = templateType.GetMethod("CloseViewTemplate");
+
+        if (childProp == null || closeMethod == null) return;
+
+        var children = ((System.Collections.IEnumerable)childProp.GetValue(template)!)
+            .Cast<object>().ToList();
+
+        foreach (var child in children)
+        {
+            closeMethod.Invoke(template, new[] { child });
+        }
+
+        _logger?.LogInformation("Execute — Closed {Count} open tabs", children.Count);
     }
 
     protected override void OnDeactivated()

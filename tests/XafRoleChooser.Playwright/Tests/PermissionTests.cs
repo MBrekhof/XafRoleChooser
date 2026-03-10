@@ -39,7 +39,7 @@ public class PermissionTests : PageTest
 
         // Activate admin role
         await _mainPage.ClickActiveRolesButton();
-        await _mainPage.ToggleRoleInChooser("Administrators");
+        await _mainPage.SelectRoleInChooser("Administrators");
         await _mainPage.AcceptRoleChooser();
         await _mainPage.WaitForXafReady();
 

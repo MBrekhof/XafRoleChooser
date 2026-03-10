@@ -35,6 +35,12 @@ namespace XafRoleChooser.Module
             DevExpress.ExpressApp.Security.SecurityModule.UsedExportedTypes = DevExpress.Persistent.Base.UsedExportedTypes.Custom;
             AdditionalExportedTypes.Add(typeof(DevExpress.Persistent.BaseImpl.EF.FileData));
             AdditionalExportedTypes.Add(typeof(DevExpress.Persistent.BaseImpl.EF.FileAttachment));
+            AdditionalExportedTypes.Add(typeof(XafRoleChooser.Module.BusinessObjects.Company));
+            AdditionalExportedTypes.Add(typeof(XafRoleChooser.Module.BusinessObjects.Employee));
+            AdditionalExportedTypes.Add(typeof(XafRoleChooser.Module.BusinessObjects.Project));
+            AdditionalExportedTypes.Add(typeof(XafRoleChooser.Module.BusinessObjects.Order));
+            AdditionalExportedTypes.Add(typeof(XafRoleChooser.Module.BusinessObjects.OrderLine));
+            AdditionalExportedTypes.Add(typeof(XafRoleChooser.Module.BusinessObjects.Invoice));
         }
         public override IEnumerable<ModuleUpdater> GetModuleUpdaters(IObjectSpace objectSpace, Version versionFromDB)
         {

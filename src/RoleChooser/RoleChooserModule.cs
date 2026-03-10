@@ -133,10 +133,12 @@ public sealed class RoleChooserModule : ModuleBase
 
         filter.Initialize(alwaysActiveRoleId, availableRoles);
 
-        // NOW set the ambient accessor — subsequent Roles calls will be filtered
+        // Register filter by user ID (survives Blazor Server async boundaries)
+        RoleFilterAccessor.Set(userId, filter);
+        // Also set AsyncLocal for same-thread calls during initialization
         RoleFilterAccessor.Current = filter;
 
-        logger?.LogInformation("RoleFilterAccessor.Current set — filter initialized for user {UserId}", userId);
+        logger?.LogInformation("RoleFilterAccessor set for user {UserId} — filter initialized", userId);
     }
 
     public override IEnumerable<ModuleUpdater> GetModuleUpdaters(IObjectSpace objectSpace, Version versionFromDB)

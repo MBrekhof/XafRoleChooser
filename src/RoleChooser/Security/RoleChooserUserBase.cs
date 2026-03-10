@@ -17,7 +17,9 @@ public abstract class RoleChooserUserBase : PermissionPolicyUser
         get
         {
             var allRoles = base.Roles;
-            var filter = RoleFilterAccessor.Current;
+            // Look up by user ID first (survives Blazor Server async boundaries),
+            // fall back to AsyncLocal (used during initialization)
+            var filter = RoleFilterAccessor.Get(this.ID) ?? RoleFilterAccessor.Current;
             if (filter == null || allRoles is not { Count: > 0 })
             {
                 _logger?.LogDebug("Roles getter — no filter or empty roles, returning {Count} unfiltered roles",

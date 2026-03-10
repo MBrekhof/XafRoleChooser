@@ -22,6 +22,12 @@ namespace XafRoleChooser.Module.BusinessObjects
         public DbSet<XafRoleChooser.Module.BusinessObjects.ApplicationUserLoginInfo> UserLoginsInfo { get; set; }
         public DbSet<FileData> FileData { get; set; }
         public DbSet<DashboardData> DashboardData { get; set; }
+        public DbSet<Company> Companies { get; set; }
+        public DbSet<Employee> Employees { get; set; }
+        public DbSet<Project> Projects { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderLine> OrderLines { get; set; }
+        public DbSet<Invoice> Invoices { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

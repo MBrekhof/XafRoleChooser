@@ -14,5 +14,6 @@ public class ActiveRoleSelection
 
     public string RoleName { get; set; } = string.Empty;
 
+    [Browsable(false)]
     public bool IsActive { get; set; }
 }

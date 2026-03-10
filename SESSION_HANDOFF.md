@@ -6,22 +6,32 @@ Also read: `TODO.md`, `CLAUDE.md`, `docs/how-to-implement.md`
 
 ## Project State
 
-**Reusable XAF module** that lets users choose which roles are active after login via a toolbar multi-select dropdown. "Default" role is always active. No restart needed.
+**Reusable XAF module** that lets users choose which roles are active after login via a toolbar popup with row-selection checkboxes. No restart needed — permissions update live.
 
 ## Current Status
 
-**Phase: Implementation complete. Verified end-to-end. All 16/16 E2E tests pass.**
+**Phase: Implementation complete. Verified end-to-end. All 17/17 E2E tests pass.**
 
-All code is written and the full solution builds clean (0 warnings, 0 errors). Docker, Playwright tests, and documentation are in place. The role loading bug (where `AllRoles` returned filtered results because it used the overridden `Roles` navigation property) has been fixed by switching to a `GetAllRoles()` method that loads roles via raw SQL from the `PermissionPolicyRolePermissionPolicyUser` join table. The `NonPersistentObjectSpace.ObjectsGetting` event is used to populate the popup ListView.
+All code is written and the full solution builds clean. Docker, Playwright tests, and documentation are in place.
+
+### Key changes since initial implementation
+
+- **Row selection instead of inline editing** — XAF Blazor renders boolean columns in popup ListViews as display-only SVGs. The popup now uses row-selection checkboxes (`PopupWindowViewSelectedObjects`) instead of an `IsActive` toggle column.
+- **Tab closing on role switch** — After accepting the role chooser, all open tabs are closed via reflection (`ChildTemplates` + `CloseViewTemplate()`) to prevent unauthorized access to views the user no longer has permissions for.
+- **Navigation rebuild** — `ShowNavigationItemController.RecreateNavigationItems()` rebuilds the nav tree after role switch, then navigates to the startup item.
+- **Sample business entities** — Demo app includes Company, Employee, Project, Order/OrderLine, and Invoice entities with role-based permissions and realistic seed data.
+- **Serilog structured logging** — Console + File sinks throughout the RoleChooser module and Blazor Server host.
+- **Blazor Server session handling** — `RoleFilterAccessor` uses `ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by user ID (AsyncLocal fails across Blazor async boundaries).
 
 ## Key Decisions Made
 
 1. **Reusable module** — standalone package at `src/RoleChooser/`
-2. **Multi-select popup with Apply** — PopupWindowShowAction with ListView of ActiveRoleSelection
-3. **Security mechanism** — `RoleChooserUserBase` overrides `PermissionPolicyUser.Roles` (virtual), filtering via `AsyncLocal<IActiveRoleFilter>` (RoleFilterAccessor)
-4. **No restart** — `PermissionsReloadMode.NoCache` + `ReloadPermissions()` on Apply
+2. **Row-selection popup** — PopupWindowShowAction with ListView; selected rows = active roles
+3. **Security mechanism** — `RoleChooserUserBase` overrides `PermissionPolicyUser.Roles` (virtual), filtering via `RoleFilterAccessor`
+4. **No restart** — `PermissionsReloadMode.NoCache` + `ReloadPermissions()` on Accept
 5. **Service registration** — `AddRoleChooser()` extension method (XAF ModuleBase has no ConfigureServices)
 6. **No platform-specific projects** — WindowController works cross-platform
+7. **Close all tabs on role switch** — Prevents security issue where open tabs remain accessible after losing permissions
 
 ## Architecture Quick Reference
 
@@ -29,20 +39,30 @@ All code is written and the full solution builds clean (0 warnings, 0 errors). D
 |---|---|---|
 | `IActiveRoleFilter` | `src/RoleChooser/Services/` | Interface: get/set active role IDs per session |
 | `ActiveRoleFilter` | `src/RoleChooser/Services/` | Scoped implementation |
-| `ActiveRoleSelection` | `src/RoleChooser/BusinessObjects/` | NonPersistent BO for checklist popup |
-| `RoleChooserWindowController` | `src/RoleChooser/Controllers/` | PopupWindowShowAction in toolbar |
+| `ActiveRoleSelection` | `src/RoleChooser/BusinessObjects/` | NonPersistent BO for popup ListView (RoleName visible, IsActive/RoleId hidden) |
+| `RoleChooserWindowController` | `src/RoleChooser/Controllers/` | PopupWindowShowAction in toolbar, tab closing, nav rebuild |
 | `RoleChooserUserBase` | `src/RoleChooser/Security/` | Base class overriding Roles property |
-| `RoleFilterAccessor` | `src/RoleChooser/Security/` | AsyncLocal ambient accessor |
+| `RoleFilterAccessor` | `src/RoleChooser/Security/` | ConcurrentDictionary-based ambient accessor |
 | `RoleChooserModule` | `src/RoleChooser/` | Module definition, LoggedOn hook |
 | `AddRoleChooser()` | `src/RoleChooser/` | DI registration extension |
+
+## Demo Business Objects
+
+| Entity | Nav Group | Roles with Access |
+|---|---|---|
+| Company | Company | All roles (shared) |
+| Employee | HR | HR Manager |
+| Project | Projects | Project Manager, Sales |
+| Order/OrderLine | Sales | Sales, Finance |
+| Invoice | Finance | Finance, Sales |
 
 ## Test Users (all empty passwords)
 
 | User | Roles |
 |---|---|
-| Admin | Default, Administrators, Manager, Reports |
+| Admin | Administrators, HR Manager, Project Manager, Sales, Finance |
 | User | Default |
-| MultiRole | Default, Administrators, Manager, DataEntry, Reports |
+| MultiRole | Default, Administrators, HR Manager, Project Manager, Sales, Finance |
 
 ## How to Run
 
@@ -57,5 +77,5 @@ dotnet test tests/XafRoleChooser.Playwright/
 ## Completed Verification
 
 1. ~~Run the app against Docker SQL Server, verify toolbar button appears and role switching works~~ — Done
-2. ~~Run Playwright tests, fix selectors/timing for actual XAF Blazor markup~~ — Done (16/16 pass)
+2. ~~Run Playwright tests, fix selectors/timing for actual XAF Blazor markup~~ — Done (17/17 pass)
 3. Test WinForms frontend — not yet verified

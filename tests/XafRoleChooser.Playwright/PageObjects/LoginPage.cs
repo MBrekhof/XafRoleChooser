@@ -14,17 +14,20 @@ public class LoginPage : Infrastructure.XafPageBase
 
     public async Task Login(string username, string password = "")
     {
-        await Page.FillAsync("input[placeholder='User Name'], input#UserName", username);
+        // XAF Blazor uses DevExpress text edit inputs
+        var usernameInput = Page.Locator("input.dxbl-text-edit-input[type='text']").First;
+        await usernameInput.FillAsync(username);
         if (!string.IsNullOrEmpty(password))
         {
-            await Page.FillAsync("input[placeholder='Password'], input#Password, input[type='password']", password);
+            var passwordInput = Page.Locator("input.dxbl-text-edit-input[type='password']").First;
+            await passwordInput.FillAsync(password);
         }
-        await Page.ClickAsync("button:has-text('Log In'), .xaf-logon-button, button[type='submit']");
+        await Page.ClickAsync("button.xaf-action[data-action-name='Log In']:not([dxbl-virtual-el])");
         await WaitForXafReady();
     }
 
     public async Task<bool> IsLoginPageVisible()
     {
-        return await Page.Locator("input[placeholder='User Name'], input#UserName").IsVisibleAsync();
+        return await Page.Locator("input.dxbl-text-edit-input[type='text']").First.IsVisibleAsync();
     }
 }
