@@ -50,4 +50,41 @@ public class MainPage : Infrastructure.XafPageBase
         await Page.ClickAsync("button:has-text('Log Off'), .xaf-logoff-button, a:has-text('Log Off')");
         await WaitForXafReady();
     }
+
+    public async Task<bool> IsNavGroupVisible(string groupName, int timeoutMs = 5000)
+    {
+        try
+        {
+            // XAF Blazor renders navigation items with various selectors
+            var navGroup = Page.Locator($"text='{groupName}'").First;
+            await navGroup.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> IsNavGroupHidden(string groupName, int timeoutMs = 3000)
+    {
+        try
+        {
+            var navGroup = Page.Locator($"text='{groupName}'").First;
+            await navGroup.WaitForAsync(new() { State = WaitForSelectorState.Hidden, Timeout = timeoutMs });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
+    }
+
+    public async Task WaitForNavigationRefresh()
+    {
+        // After role switch, wait for navigation rebuild and page to settle
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await WaitForXafReady();
+        await Page.WaitForTimeoutAsync(1000);
+    }
 }

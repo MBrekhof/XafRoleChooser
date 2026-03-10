@@ -3,7 +3,8 @@
   <Playwright>
     <BrowserName>chromium</BrowserName>
     <LaunchOptions>
-      <Headless>true</Headless>
+      <Headless>false</Headless>
+      <SlowMo>500</SlowMo>
     </LaunchOptions>
   </Playwright>
 </RunSettings>
