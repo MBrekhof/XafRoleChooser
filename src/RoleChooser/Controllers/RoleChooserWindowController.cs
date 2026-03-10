@@ -2,6 +2,7 @@ using System.ComponentModel;
 using DevExpress.ExpressApp;
 using DevExpress.ExpressApp.Actions;
 using DevExpress.ExpressApp.Security;
+using DevExpress.ExpressApp.SystemModule;
 using DevExpress.Persistent.BaseImpl.EF.PermissionPolicy;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -102,11 +103,29 @@ public class RoleChooserWindowController : WindowController
             _logger?.LogWarning("Execute — No ISecurityStrategyBase found, permissions NOT reloaded");
         }
 
-        // Refresh the current view to reflect new permissions
-        if (Frame?.View != null)
+        // Recreate navigation items so the nav tree reflects the new permissions
+        var navController = Frame?.GetController<ShowNavigationItemController>();
+        if (navController != null)
         {
-            Frame.View.ObjectSpace.Refresh();
-            _logger?.LogInformation("Execute — View refreshed ({ViewId})", Frame.View.Id);
+            navController.RecreateNavigationItems();
+            _logger?.LogInformation("Execute — Navigation items recreated");
+
+            // Navigate to the startup item so the user lands on a permitted view
+            var startupItem = navController.GetStartupNavigationItem();
+            if (startupItem != null)
+            {
+                navController.ShowNavigationItemAction.DoExecute(startupItem);
+                _logger?.LogInformation("Execute — Navigated to startup item");
+            }
+        }
+        else
+        {
+            // Fallback: at least refresh the current view
+            if (Frame?.View != null)
+            {
+                Frame.View.ObjectSpace.Refresh();
+                _logger?.LogInformation("Execute — View refreshed ({ViewId})", Frame.View.Id);
+            }
         }
     }
 
