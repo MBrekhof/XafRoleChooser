@@ -13,7 +13,8 @@ public class ActiveRoleFilter : IActiveRoleFilter
     {
         AlwaysActiveRoleId = alwaysActiveRoleId;
         _availableRoles = availableRoles.ToList();
-        _activeRoleIds.Clear();
+        // Activate all roles by default — user can deactivate via the chooser
+        _activeRoleIds = new HashSet<Guid>(_availableRoles.Select(r => r.Id));
     }
 
     public void SetActiveRoles(IEnumerable<Guid> roleIds)

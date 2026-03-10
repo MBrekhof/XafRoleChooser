@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="DevExpress.ExpressApp" Version="25.2.3" />
+    <PackageReference Include="DevExpress.ExpressApp.EFCore" Version="25.2.3" />
     <PackageReference Include="DevExpress.ExpressApp.Security" Version="25.2.3" />
     <PackageReference Include="DevExpress.Persistent.BaseImpl.EFCore" Version="25.2.3" />
   </ItemGroup>

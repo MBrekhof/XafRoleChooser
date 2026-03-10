@@ -48,7 +48,7 @@ public class ApplicationUser : RoleChooserUserBase, ISecurityUserWithLoginInfo
 
 `RoleChooserUserBase` inherits from `PermissionPolicyUser` and overrides the `Roles` property to return only the currently active roles. The security system reads this property when evaluating permissions, so filtering it is all that is needed to change effective permissions on the fly.
 
-`RoleChooserUserBase` also provides an `AllRoles` property that returns every role assigned to the user, regardless of active/inactive state. Use `AllRoles` whenever you need the full list (e.g., in admin views or audit logic).
+`RoleChooserUserBase` also provides a `GetAllRoles()` method that returns every role assigned to the user, regardless of active/inactive state. This method loads roles via raw SQL from the `PermissionPolicyRolePermissionPolicyUser` join table, bypassing the filtered `Roles` property. Use `GetAllRoles()` whenever you need the full list (e.g., in admin views, the role chooser UI, or audit logic).
 
 ### Step 3: Register Services
 
@@ -132,7 +132,7 @@ The always-active role is never shown in the role chooser popup since the user c
 │  │ WindowController │  │ : RoleChooserUserBase│  │
 │  │                  │  │                     │  │
 │  │ [Active Roles]   │  │ Roles (filtered) ──►│──┼── SecurityStrategy
-│  │  ↓               │  │ AllRoles (all)      │  │   reads only active
+│  │  ↓               │  │ GetAllRoles() (all) │  │   reads only active
 │  │ PopupListView    │  └─────────────────────┘  │   roles for permission
 │  │  ↓               │                           │   evaluation
 │  │ IActiveRoleFilter│◄──── AsyncLocal ──────────┤

@@ -10,9 +10,9 @@ Also read: `TODO.md`, `CLAUDE.md`, `docs/how-to-implement.md`
 
 ## Current Status
 
-**Phase: Implementation complete. Needs end-to-end verification.**
+**Phase: Implementation complete. Verified end-to-end. All 16/16 E2E tests pass.**
 
-All code is written and the full solution builds clean (0 warnings, 0 errors). Docker, Playwright tests, and documentation are in place. Next step is running the app and verifying everything works.
+All code is written and the full solution builds clean (0 warnings, 0 errors). Docker, Playwright tests, and documentation are in place. The role loading bug (where `AllRoles` returned filtered results because it used the overridden `Roles` navigation property) has been fixed by switching to a `GetAllRoles()` method that loads roles via raw SQL from the `PermissionPolicyRolePermissionPolicyUser` join table. The `NonPersistentObjectSpace.ObjectsGetting` event is used to populate the popup ListView.
 
 ## Key Decisions Made
 
@@ -54,8 +54,8 @@ pwsh tests/XafRoleChooser.Playwright/bin/Debug/net8.0/playwright.ps1 install
 dotnet test tests/XafRoleChooser.Playwright/
 ```
 
-## Next Steps
+## Completed Verification
 
-1. Run the app against Docker SQL Server, verify toolbar button appears and role switching works
-2. Run Playwright tests, fix selectors/timing for actual XAF Blazor markup
-3. Test WinForms frontend
+1. ~~Run the app against Docker SQL Server, verify toolbar button appears and role switching works~~ — Done
+2. ~~Run Playwright tests, fix selectors/timing for actual XAF Blazor markup~~ — Done (16/16 pass)
+3. Test WinForms frontend — not yet verified

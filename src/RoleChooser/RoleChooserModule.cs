@@ -1,7 +1,11 @@
+using System.Data;
+using System.Data.Common;
 using DevExpress.ExpressApp;
+using DevExpress.ExpressApp.EFCore;
 using DevExpress.ExpressApp.Security;
 using DevExpress.ExpressApp.Updating;
 using DevExpress.Persistent.BaseImpl.EF.PermissionPolicy;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RoleChooser.BusinessObjects;
@@ -52,34 +56,67 @@ public sealed class RoleChooserModule : ModuleBase
     {
         var app = (XafApplication)sender!;
         var filter = app.ServiceProvider.GetRequiredService<IActiveRoleFilter>();
+        var userId = (Guid)app.Security.UserId;
 
-        // Set the ambient accessor so the Roles override can access the filter
-        RoleFilterAccessor.Current = filter;
-
-        // Initialize the filter with the current user's roles
-        using var os = app.CreateObjectSpace(typeof(PermissionPolicyRole));
-        var userId = app.Security.UserId;
-
-        // Get the user with ALL roles (bypass our filter by reading through ObjectSpace)
-        var user = os.GetObjectByKey<PermissionPolicyUser>(userId);
-        if (user == null) return;
+        // Ensure filter accessor is null so the Roles override returns base.Roles (unfiltered)
+        RoleFilterAccessor.Current = null;
 
         Guid? alwaysActiveRoleId = null;
         var availableRoles = new List<(Guid Id, string Name)>();
 
-        foreach (PermissionPolicyRole role in user.Roles)
+        // Use raw SQL to load roles directly from the join table.
+        // This bypasses the RoleChooserUserBase.Roles override entirely,
+        // avoiding issues with EF Core change tracking proxies and Include.
+        using var os = app.CreateObjectSpace(typeof(PermissionPolicyUser));
+        if (os is EFCoreObjectSpace efOs)
         {
-            if (string.Equals(role.Name, AlwaysActiveRoleName, StringComparison.OrdinalIgnoreCase))
+            var db = efOs.DbContext.Database;
+            var conn = db.GetDbConnection();
+            var wasOpen = conn.State == ConnectionState.Open;
+            if (!wasOpen) conn.Open();
+
+            try
             {
-                alwaysActiveRoleId = role.ID;
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText =
+                    "SELECT r.ID, r.Name " +
+                    "FROM PermissionPolicyRoleBase r " +
+                    "INNER JOIN PermissionPolicyRolePermissionPolicyUser ur ON r.ID = ur.RolesID " +
+                    "WHERE ur.UsersID = @userId " +
+                    "ORDER BY r.Name";
+
+                var param = cmd.CreateParameter();
+                param.ParameterName = "@userId";
+                param.Value = userId;
+                param.DbType = DbType.Guid;
+                cmd.Parameters.Add(param);
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    var roleId = reader.GetGuid(0);
+                    var roleName = reader.GetString(1);
+
+                    if (string.Equals(roleName, AlwaysActiveRoleName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        alwaysActiveRoleId = roleId;
+                    }
+                    else
+                    {
+                        availableRoles.Add((roleId, roleName));
+                    }
+                }
             }
-            else
+            finally
             {
-                availableRoles.Add((role.ID, role.Name));
+                if (!wasOpen) conn.Close();
             }
         }
 
         filter.Initialize(alwaysActiveRoleId, availableRoles);
+
+        // NOW set the ambient accessor — subsequent Roles calls will be filtered
+        RoleFilterAccessor.Current = filter;
     }
 
     public override IEnumerable<ModuleUpdater> GetModuleUpdaters(IObjectSpace objectSpace, Version versionFromDB)

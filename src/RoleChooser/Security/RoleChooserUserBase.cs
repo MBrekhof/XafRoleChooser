@@ -22,6 +22,5 @@ public abstract class RoleChooserUserBase : PermissionPolicyUser
     /// Access ALL assigned roles regardless of the active filter.
     /// Use this for role management and the role chooser UI.
     /// </summary>
-    [System.ComponentModel.Browsable(false)]
-    public IList<PermissionPolicyRole> AllRoles => base.Roles;
+    public IList<PermissionPolicyRole> GetAllRoles() => base.Roles;
 }

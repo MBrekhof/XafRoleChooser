@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using DevExpress.ExpressApp;
 using DevExpress.ExpressApp.Actions;
 using DevExpress.ExpressApp.Security;
@@ -18,7 +19,7 @@ public class RoleChooserWindowController : WindowController
     {
         TargetWindowType = WindowType.Main;
 
-        _chooseRolesAction = new PopupWindowShowAction(this, "ChooseActiveRoles", "Status")
+        _chooseRolesAction = new PopupWindowShowAction(this, "ChooseActiveRoles", DevExpress.Persistent.Base.PredefinedCategory.Tools.ToString())
         {
             Caption = "Active Roles",
             ImageName = "Security_Role",
@@ -39,6 +40,7 @@ public class RoleChooserWindowController : WindowController
         if (_roleFilter == null) return;
 
         var os = Application.CreateObjectSpace(typeof(ActiveRoleSelection));
+        var items = new BindingList<ActiveRoleSelection>();
 
         foreach (var (id, name) in _roleFilter.AvailableRoles)
         {
@@ -46,6 +48,19 @@ public class RoleChooserWindowController : WindowController
             item.RoleId = id;
             item.RoleName = name;
             item.IsActive = _roleFilter.IsRoleActive(id);
+            items.Add(item);
+        }
+
+        // NonPersistentObjectSpace needs ObjectsGetting to provide objects for ListView
+        if (os is NonPersistentObjectSpace npOs)
+        {
+            npOs.ObjectsGetting += (s, args) =>
+            {
+                if (args.ObjectType == typeof(ActiveRoleSelection))
+                {
+                    args.Objects = items;
+                }
+            };
         }
 
         e.View = Application.CreateListView(os, typeof(ActiveRoleSelection), true);

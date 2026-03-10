@@ -22,16 +22,17 @@
 
 ## Phase 3: Infrastructure — COMPLETE
 - [x] Docker Compose with SQL Server 2022
-- [x] Playwright test project scaffold (12 tests across 3 files)
+- [x] Playwright test project scaffold (16 tests across 3 files)
 
 ## Phase 4: Documentation — COMPLETE
 - [x] Write `docs/how-to-implement.md` — step-by-step guide for XAF developers
 - [x] Update `CLAUDE.md` with new module structure
 - [x] Design doc at `docs/plans/2026-03-10-role-chooser-design.md`
 
-## Phase 5: Verification — TODO
-- [ ] Run the Blazor app against Docker SQL Server and verify end-to-end
-- [ ] Run Playwright tests and fix any selector/timing issues
+## Phase 5: Verification — IN PROGRESS
+- [x] Run the Blazor app against Docker SQL Server and verify end-to-end
+- [x] Run Playwright tests and fix any selector/timing issues (16/16 pass)
+- [x] Fix role loading bug: replaced `AllRoles` property with `GetAllRoles()` method using raw SQL from `PermissionPolicyRolePermissionPolicyUser` join table
 - [ ] Verify WinForms app works with the module
 
 ## Resolved Questions
