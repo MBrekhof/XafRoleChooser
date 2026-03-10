@@ -33,5 +33,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\XafRoleChooser.Module\XafRoleChooser.Module.csproj" />
+    <ProjectReference Include="..\..\src\RoleChooser\RoleChooser.csproj" />
   </ItemGroup>
 </Project>

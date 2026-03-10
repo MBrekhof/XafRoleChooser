@@ -36,6 +36,9 @@ namespace XafRoleChooser.Module.DatabaseUpdate
             // If a role doesn't exist in the database, create this role
             var defaultRole = CreateDefaultRole();
             var adminRole = CreateAdminRole();
+            var managerRole = CreateManagerRole();
+            var dataEntryRole = CreateDataEntryRole();
+            var reportsRole = CreateReportsRole();
 
             ObjectSpace.CommitChanges(); //This line persists created object(s).
 
@@ -62,6 +65,23 @@ namespace XafRoleChooser.Module.DatabaseUpdate
                 {
                     // Add the Administrators role to the user
                     user.Roles.Add(adminRole);
+                    user.Roles.Add(managerRole);
+                    user.Roles.Add(reportsRole);
+                });
+            }
+
+            // If a user named 'MultiRole' doesn't exist in the database, create this user
+            // This user has all roles for testing the role chooser
+            if (userManager.FindUserByName<ApplicationUser>(ObjectSpace, "MultiRole") == null)
+            {
+                string EmptyPassword = "";
+                _ = userManager.CreateUser<ApplicationUser>(ObjectSpace, "MultiRole", EmptyPassword, (user) =>
+                {
+                    user.Roles.Add(defaultRole);
+                    user.Roles.Add(adminRole);
+                    user.Roles.Add(managerRole);
+                    user.Roles.Add(dataEntryRole);
+                    user.Roles.Add(reportsRole);
                 });
             }
 
@@ -82,6 +102,45 @@ namespace XafRoleChooser.Module.DatabaseUpdate
                 adminRole.IsAdministrative = true;
             }
             return adminRole;
+        }
+        PermissionPolicyRole CreateManagerRole()
+        {
+            PermissionPolicyRole role = ObjectSpace.FirstOrDefault<PermissionPolicyRole>(r => r.Name == "Manager");
+            if (role == null)
+            {
+                role = ObjectSpace.CreateObject<PermissionPolicyRole>();
+                role.Name = "Manager";
+                role.AddTypePermissionsRecursively<object>(SecurityOperations.Read, SecurityPermissionState.Allow);
+                role.AddNavigationPermission(@"Application/NavigationItems/Items/Default/Items/PermissionPolicyUser_ListView", SecurityPermissionState.Allow);
+                role.AddNavigationPermission(@"Application/NavigationItems/Items/Default/Items/PermissionPolicyRole_ListView", SecurityPermissionState.Allow);
+            }
+            return role;
+        }
+        PermissionPolicyRole CreateDataEntryRole()
+        {
+            PermissionPolicyRole role = ObjectSpace.FirstOrDefault<PermissionPolicyRole>(r => r.Name == "DataEntry");
+            if (role == null)
+            {
+                role = ObjectSpace.CreateObject<PermissionPolicyRole>();
+                role.Name = "DataEntry";
+                role.AddTypePermissionsRecursively<object>(SecurityOperations.Read, SecurityPermissionState.Allow);
+                role.AddTypePermissionsRecursively<object>(SecurityOperations.Write, SecurityPermissionState.Allow);
+                role.AddTypePermissionsRecursively<object>(SecurityOperations.Create, SecurityPermissionState.Allow);
+            }
+            return role;
+        }
+        PermissionPolicyRole CreateReportsRole()
+        {
+            PermissionPolicyRole role = ObjectSpace.FirstOrDefault<PermissionPolicyRole>(r => r.Name == "Reports");
+            if (role == null)
+            {
+                role = ObjectSpace.CreateObject<PermissionPolicyRole>();
+                role.Name = "Reports";
+                role.AddTypePermissionsRecursively<object>(SecurityOperations.Read, SecurityPermissionState.Allow);
+                role.AddNavigationPermission(@"Application/NavigationItems/Items/Reports/Items/Dashboards_ListView", SecurityPermissionState.Allow);
+                role.AddNavigationPermission(@"Application/NavigationItems/Items/Default/Items/DashboardData_ListView", SecurityPermissionState.Allow);
+            }
+            return role;
         }
         PermissionPolicyRole CreateDefaultRole()
         {

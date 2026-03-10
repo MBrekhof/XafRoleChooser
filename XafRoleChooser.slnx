@@ -7,4 +7,6 @@
   <Project Path="XafRoleChooser/XafRoleChooser.Blazor.Server/XafRoleChooser.Blazor.Server.csproj" />
   <Project Path="XafRoleChooser/XafRoleChooser.Module/XafRoleChooser.Module.csproj" />
   <Project Path="XafRoleChooser/XafRoleChooser.Win/XafRoleChooser.Win.csproj" />
+  <Project Path="src/RoleChooser/RoleChooser.csproj" />
+  <Project Path="tests/XafRoleChooser.Playwright/XafRoleChooser.Playwright.csproj" />
 </Solution>

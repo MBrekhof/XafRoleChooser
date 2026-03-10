@@ -10,6 +10,7 @@ using DevExpress.Persistent.Base;
 using DevExpress.Persistent.BaseImpl.EF.PermissionPolicy;
 using DevExpress.XtraEditors;
 using Microsoft.EntityFrameworkCore;
+using RoleChooser;
 using System.Configuration;
 
 namespace XafRoleChooser.Win
@@ -21,6 +22,7 @@ namespace XafRoleChooser.Win
             var builder = WinApplication.CreateBuilder();
             // Register custom services for Dependency Injection. For more information, refer to the following topic: https://docs.devexpress.com/eXpressAppFramework/404430/
             // builder.Services.AddScoped<CustomService>();
+            builder.Services.AddRoleChooser();
             // Register 3rd-party IoC containers (like Autofac, Dryloc, etc.)
             // builder.UseServiceProviderFactory(new DryIocServiceProviderFactory());
             // builder.UseServiceProviderFactory(new AutofacServiceProviderFactory());
@@ -42,6 +44,7 @@ namespace XafRoleChooser.Win
                 })
                 .AddViewVariants()
                 .Add<XafRoleChooser.Module.XafRoleChooserModule>()
+                .Add<RoleChooser.RoleChooserModule>()
                 .Add<XafRoleChooserWinModule>();
             builder.ObjectSpaceProviders
                 .AddSecuredEFCore(options =>

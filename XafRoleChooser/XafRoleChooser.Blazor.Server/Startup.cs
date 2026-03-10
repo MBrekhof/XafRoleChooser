@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using RoleChooser;
 using XafRoleChooser.Blazor.Server.Services;
 using XafRoleChooser.WebApi.JWT;
 
@@ -41,6 +42,7 @@ namespace XafRoleChooser.Blazor.Server
             services.AddHttpContextAccessor();
             services.AddScoped<IAuthenticationTokenProvider, JwtTokenProviderService>();
             services.AddScoped<CircuitHandler, CircuitHandlerProxy>();
+            services.AddRoleChooser();
             services.AddXaf(Configuration, builder =>
             {
                 builder.UseApplication<XafRoleChooserBlazorApplication>();
@@ -69,6 +71,7 @@ namespace XafRoleChooser.Blazor.Server
                     })
                     .AddViewVariants()
                     .Add<XafRoleChooser.Module.XafRoleChooserModule>()
+                    .Add<RoleChooser.RoleChooserModule>()
                     .Add<XafRoleChooserBlazorModule>();
                 builder.ObjectSpaceProviders
                     .AddSecuredEFCore(options =>
