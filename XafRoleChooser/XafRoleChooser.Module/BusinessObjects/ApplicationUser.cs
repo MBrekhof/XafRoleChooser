@@ -7,6 +7,7 @@ using System.ComponentModel;
 
 namespace XafRoleChooser.Module.BusinessObjects
 {
+    [DefaultClassOptions]
     [DefaultProperty(nameof(UserName))]
     public class ApplicationUser : RoleChooserUserBase, ISecurityUserWithLoginInfo, ISecurityUserLockout
     {
