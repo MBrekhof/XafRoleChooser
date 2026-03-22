@@ -79,15 +79,27 @@ public class RoleChooserWindowController : WindowController
     {
         if (_roleFilter == null) return;
 
-        // Use row selection (checkboxes in the left column) to determine active roles
-        var selectedRoleIds = new List<Guid>();
-        foreach (ActiveRoleSelection item in e.PopupWindowViewSelectedObjects)
-        {
-            selectedRoleIds.Add(item.RoleId);
-        }
+        // Capture previous state for logging
+        var previousRoles = _roleFilter.AvailableRoles
+            .Where(r => _roleFilter.IsRoleActive(r.Id))
+            .Select(r => r.Name).ToList();
 
-        _logger?.LogInformation("Execute — {Count} roles selected via row selection: [{RoleIds}]",
-            selectedRoleIds.Count, string.Join(", ", selectedRoleIds));
+        // Use row selection (checkboxes in the left column) to determine active roles
+        var selectedItems = e.PopupWindowViewSelectedObjects.Cast<ActiveRoleSelection>().ToList();
+        var selectedRoleIds = selectedItems.Select(i => i.RoleId).ToList();
+        var selectedRoleNames = selectedItems.Select(i => i.RoleName).ToList();
+
+        var deactivated = previousRoles.Except(selectedRoleNames).ToList();
+        var activated = selectedRoleNames.Except(previousRoles).ToList();
+
+        _logger?.LogInformation(
+            "Role switch — Active: [{ActiveRoles}] | Deactivated: [{Deactivated}] | Newly activated: [{Activated}] | Always-active: {AlwaysActive}",
+            string.Join(", ", selectedRoleNames),
+            deactivated.Count > 0 ? string.Join(", ", deactivated) : "(none)",
+            activated.Count > 0 ? string.Join(", ", activated) : "(none)",
+            _roleFilter.AlwaysActiveRoleId.HasValue
+                ? _roleFilter.AvailableRoles.FirstOrDefault(r => r.Id == _roleFilter.AlwaysActiveRoleId.Value).Name ?? "unknown"
+                : "(none)");
 
         _roleFilter.SetActiveRoles(selectedRoleIds);
 

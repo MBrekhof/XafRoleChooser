@@ -48,6 +48,7 @@ namespace XafRoleChooser.Module.DatabaseUpdate
                 string EmptyPassword = "";
                 _ = userManager.CreateUser<ApplicationUser>(ObjectSpace, "Admin", EmptyPassword, (user) =>
                 {
+                    user.Roles.Add(defaultRole);
                     user.Roles.Add(adminRole);
                     user.Roles.Add(hrManagerRole);
                     user.Roles.Add(projectManagerRole);
