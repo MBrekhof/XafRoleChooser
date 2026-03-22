@@ -97,12 +97,13 @@ public class RoleChooserWindowController : WindowController
         // Cache references before CloseAllTabs — closing tabs can deactivate the controller
         var app = Application;
         var frame = Frame;
+        var window = Window;
         var navController = frame?.GetController<ShowNavigationItemController>();
 
         _roleFilter.SetActiveRoles(selectedRoleIds);
 
         // Close all open tabs to dispose stale ObjectSpaces
-        CloseAllTabs();
+        CloseAllTabs(app, window);
 
         // Reload permissions — new ObjectSpaces will use the updated role filter
         if (app?.Security is ISecurityStrategyBase securityStrategy)
@@ -132,47 +133,42 @@ public class RoleChooserWindowController : WindowController
 
     /// <summary>
     /// Closes all open tabs/documents to prevent stale ObjectSpaces after role switch.
-    /// Blazor: via ITabbedMdiMainFormTemplate.CloseViewTemplate.
-    /// WinForms: via IDocumentsHostWindow.DocumentManager.View.Documents.
+    /// Blazor: BlazorMdiShowViewStrategy.CloseAllWindows() (closes Views + disposes ObjectSpaces).
+    /// WinForms: ShowViewStrategy.Inspectors — close child windows only.
     /// </summary>
-    private void CloseAllTabs()
+    private void CloseAllTabs(XafApplication? app, Window? window)
     {
-        var template = Window?.Template;
+        var template = window?.Template;
         if (template == null) return;
 
-        // Blazor: ITabbedMdiMainFormTemplate
-        var tabbedInterface = template.GetType().GetInterfaces()
-            .FirstOrDefault(i => i.Name == "ITabbedMdiMainFormTemplate");
-
-        if (tabbedInterface != null)
+        // Blazor: close each MdiChildWindow via BlazorWindow.Close() which calls
+        // View.Close(false) — properly disposes ObjectSpaces and fires template events.
+        // We access MainWindow.MdiChildWindows and call Close() on each synchronously.
+        if (window is object blazorMainWindow)
         {
-            var childProp = tabbedInterface.GetProperty("ChildTemplates");
-            var closeMethod = tabbedInterface.GetMethod("CloseViewTemplate");
-            if (childProp == null || closeMethod == null) return;
-
-            var children = ((System.Collections.IEnumerable)childProp.GetValue(template)!)
-                .Cast<object>().ToList();
-
-            foreach (var child in children)
+            var mdiChildProp = blazorMainWindow.GetType().GetProperty("MdiChildWindows");
+            if (mdiChildProp?.GetValue(blazorMainWindow) is System.Collections.IList mdiChildren && mdiChildren.Count > 0)
             {
-                closeMethod.Invoke(template, new[] { child });
+                var clone = mdiChildren.Cast<object>().ToList();
+                foreach (var child in clone)
+                {
+                    child.GetType().GetMethod("Close", Type.EmptyTypes)?.Invoke(child, null);
+                }
+                _logger?.LogInformation("Execute — Closed {Count} MDI child windows (Blazor)", clone.Count);
+                return;
             }
-
-            _logger?.LogInformation("Execute — Closed {Count} open tabs (Blazor)", children.Count);
-            return;
         }
 
         // WinForms: close inspector windows (child tabs) via ShowViewStrategy.Inspectors
-        if (Application != null)
+        if (app != null)
         {
-            var strategy = Application.ShowViewStrategy;
-            var inspectorsProp = strategy?.GetType().GetProperty("Inspectors");
-            if (inspectorsProp?.GetValue(strategy) is System.Collections.IList inspectors)
+            var winStrategy = app.ShowViewStrategy;
+            var inspectorsProp = winStrategy?.GetType().GetProperty("Inspectors");
+            if (inspectorsProp?.GetValue(winStrategy) is System.Collections.IList inspectors)
             {
                 var clone = inspectors.Cast<object>().ToList();
                 foreach (var inspector in clone)
                 {
-                    // WinWindow.Close() — use the parameterless overload
                     inspector.GetType().GetMethod("Close", Type.EmptyTypes)?.Invoke(inspector, null);
                 }
                 _logger?.LogInformation("Execute — Closed {Count} inspector windows (WinForms)", clone.Count);
