@@ -4,6 +4,8 @@
 
 Built with .NET 8 | DevExpress XAF v25.2 | EF Core | SQL Server
 
+![RoleChooser Flow](docs/rolechooser-flow.png)
+
 ---
 
 ## The Problem
@@ -40,7 +42,7 @@ The module works by intercepting the point where XAF reads a user's roles for pe
 
 - **`RoleChooserUserBase`** inherits from `PermissionPolicyUser` and overrides the `Roles` property. In EF Core, this property is virtual, which makes the override possible. The overridden getter returns only the roles that are currently marked as active, rather than all assigned roles.
 
-- **`RoleFilterAccessor`** uses `AsyncLocal<IActiveRoleFilter>` to provide thread-safe ambient access to the active role filter. This is necessary because EF Core entities are not created through dependency injection — they have no access to the DI container. `AsyncLocal<T>` flows with the `ExecutionContext` across async boundaries, so the filter is available wherever the entity is materialized.
+- **`RoleFilterAccessor`** uses a `ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by user ID to provide thread-safe access to the active role filter. This is necessary because EF Core entities are not created through dependency injection, and `AsyncLocal<T>` does not survive Blazor Server's async boundaries. The dictionary lookup ensures the correct filter is used regardless of thread context.
 
 - **`PermissionsReloadMode.NoCache`** ensures that the security system re-evaluates permissions on every `DbContext` operation rather than caching them for the session. This is what makes role changes take effect immediately without re-login. This is the default mode in XAF, so no configuration is typically needed.
 
@@ -132,12 +134,12 @@ The always-active role is excluded from the role chooser popup entirely. It is a
 │  │      ↓             │   │        IActiveRoleFilter   │ │   evaluates only
 │  │ Popup ListView     │   │ GetAllRoles() → raw SQL   │ │   active roles
 │  │      ↓             │   └───────────────────────────┘ │
-│  │ IActiveRoleFilter  │◄──── AsyncLocal<T> ─────────────┤
+│  │ IActiveRoleFilter  │◄── ConcurrentDict<UserId> ─────┤
 │  └────────────────────┘     RoleFilterAccessor           │
 └─────────────────────────────────────────────────────────┘
 ```
 
-The key insight is the separation between `Roles` (filtered, used by the security system) and `GetAllRoles()` (unfiltered, used by the role chooser UI to show all available roles). `GetAllRoles()` loads roles via raw SQL from the `PermissionPolicyRolePermissionPolicyUser` join table, bypassing the filtered `Roles` navigation property entirely. The `NonPersistentObjectSpace.ObjectsGetting` event is used to populate the popup ListView with `ActiveRoleSelection` objects. The `AsyncLocal<T>` bridge connects the controller layer (which has DI access) to the entity layer (which does not).
+The key insight is the separation between `Roles` (filtered, used by the security system) and the raw SQL role loading at login (unfiltered, used to populate the role chooser). The `NonPersistentObjectSpace.ObjectsGetting` event is used to populate the popup ListView with `ActiveRoleSelection` objects. The `ConcurrentDictionary` bridge in `RoleFilterAccessor` connects the controller layer (which has DI access) to the entity layer (which does not).
 
 ---
 
@@ -194,9 +196,9 @@ The demo application seeds the following users. All passwords are empty.
 
 | User | Roles |
 |---|---|
-| **Admin** | Default + Administrators + Manager + Reports |
+| **Admin** | Default, Administrators, HR Manager, Project Manager, Sales, Finance |
 | **User** | Default only |
-| **MultiRole** | Default + Administrators + Manager + DataEntry + Reports |
+| **MultiRole** | Default, Administrators, HR Manager, Project Manager, Sales, Finance |
 
 Log in as **MultiRole** to get the full experience — you will see all roles available in the role chooser popup and can toggle them to observe how the UI and data access change in real time.
 
@@ -226,7 +228,7 @@ The tests require a running instance of the Blazor Server application and a seed
 | Decision | Rationale |
 |---|---|
 | Override `Roles` property | This is the only reliable interception point. XAF has no public API to filter roles before permission evaluation. Because EF Core makes navigation properties virtual, the override works cleanly without reflection or patching. |
-| `AsyncLocal<T>` accessor | Entities loaded by EF Core are not created through dependency injection — they have no access to the DI container. `AsyncLocal<T>` flows with `ExecutionContext` across async boundaries, making the active role filter available wherever the entity is materialized, on any thread. |
+| `ConcurrentDictionary` accessor | Entities loaded by EF Core are not created through dependency injection. `AsyncLocal<T>` does not survive Blazor Server's async boundaries, so a `ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by user ID is used instead. |
 | `PermissionsReloadMode.NoCache` requirement | Ensures permissions are re-read per `DbContext` operation, picking up role filter changes immediately. Without this, the security system would cache permissions from login time and role changes would have no effect until the next login. |
 | No role dependencies | YAGNI. Each role is an independent toggle. If a project needs role dependencies (e.g., "activating Manager also activates Employee"), that logic can be layered on top of the module without modifying it. |
 | `PopupWindowShowAction` | This is the standard XAF pattern for modal popups. It works identically on both Blazor Server and WinForms without any platform-specific code, which keeps the module cross-platform with zero conditional compilation. |

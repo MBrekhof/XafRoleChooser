@@ -1,0 +1,529 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "mcp-excalidraw-server",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 220,
+      "y": 10,
+      "text": "XAF RoleChooser Module — Flow",
+      "fontSize": 26,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "phase1-label",
+      "type": "text",
+      "x": 10,
+      "y": 75,
+      "strokeColor": "#868e96",
+      "text": "Login",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "login-box",
+      "type": "rectangle",
+      "x": 80,
+      "y": 65,
+      "width": 150,
+      "height": 50,
+      "backgroundColor": "#a5d8ff",
+      "label": {
+        "text": "User Login"
+      },
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "loggedon-box",
+      "type": "rectangle",
+      "x": 310,
+      "y": 65,
+      "width": 200,
+      "height": 50,
+      "backgroundColor": "#a5d8ff",
+      "label": {
+        "text": "LoggedOn Handler"
+      },
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "filter-box",
+      "type": "rectangle",
+      "x": 640,
+      "y": 65,
+      "width": 200,
+      "height": 50,
+      "backgroundColor": "#b2f2bb",
+      "label": {
+        "text": "ActiveRoleFilter"
+      },
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:43:57.881Z",
+      "version": 2
+    },
+    {
+      "id": "a1",
+      "type": "arrow",
+      "x": 238,
+      "y": 90,
+      "strokeWidth": 2,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          64,
+          1.4210854715202004e-14
+        ]
+      ],
+      "start": {
+        "id": "login-box"
+      },
+      "end": {
+        "id": "loggedon-box"
+      },
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "a2",
+      "type": "arrow",
+      "x": 518,
+      "y": 90,
+      "strokeWidth": 2,
+      "label": {
+        "text": "Initialize"
+      },
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          64,
+          1.4210854715202004e-14
+        ]
+      ],
+      "start": {
+        "id": "loggedon-box"
+      },
+      "end": {
+        "id": "filter-box"
+      },
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "phase2-label",
+      "type": "text",
+      "x": 10,
+      "y": 175,
+      "strokeColor": "#868e96",
+      "text": "Switch",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "popup-box",
+      "type": "rectangle",
+      "x": 80,
+      "y": 165,
+      "width": 200,
+      "height": 50,
+      "backgroundColor": "#ffd8a8",
+      "label": {
+        "text": "Active Roles Popup"
+      },
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "setactive-box",
+      "type": "rectangle",
+      "x": 370,
+      "y": 165,
+      "width": 190,
+      "height": 50,
+      "backgroundColor": "#ffd8a8",
+      "label": {
+        "text": "SetActiveRoles()"
+      },
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "reload-box",
+      "type": "rectangle",
+      "x": 650,
+      "y": 165,
+      "width": 220,
+      "height": 50,
+      "backgroundColor": "#ffd8a8",
+      "label": {
+        "text": "ReloadPermissions()"
+      },
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:43:58.320Z",
+      "version": 2
+    },
+    {
+      "id": "a3",
+      "type": "arrow",
+      "x": 288,
+      "y": 190,
+      "strokeWidth": 2,
+      "label": {
+        "text": "Accept"
+      },
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          74,
+          0
+        ]
+      ],
+      "start": {
+        "id": "popup-box"
+      },
+      "end": {
+        "id": "setactive-box"
+      },
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "a4",
+      "type": "arrow",
+      "x": 568,
+      "y": 190,
+      "strokeWidth": 2,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          74,
+          0
+        ]
+      ],
+      "start": {
+        "id": "setactive-box"
+      },
+      "end": {
+        "id": "reload-box"
+      },
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "phase3-label",
+      "type": "text",
+      "x": 10,
+      "y": 275,
+      "strokeColor": "#868e96",
+      "text": "Refresh",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "closetabs-box",
+      "type": "rectangle",
+      "x": 80,
+      "y": 265,
+      "width": 180,
+      "height": 50,
+      "backgroundColor": "#d0bfff",
+      "label": {
+        "text": "Close All Tabs"
+      },
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "recreate-box",
+      "type": "rectangle",
+      "x": 350,
+      "y": 265,
+      "width": 220,
+      "height": 50,
+      "backgroundColor": "#d0bfff",
+      "label": {
+        "text": "Recreate Navigation"
+      },
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "startup-box",
+      "type": "rectangle",
+      "x": 660,
+      "y": 265,
+      "width": 200,
+      "height": 50,
+      "backgroundColor": "#d0bfff",
+      "label": {
+        "text": "Navigate to Startup"
+      },
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:43:58.828Z",
+      "version": 2
+    },
+    {
+      "id": "a5",
+      "type": "arrow",
+      "x": 642.1124915389242,
+      "y": 209.98093363747046,
+      "strokeWidth": 2,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -374.22498307784855,
+          63.42796323353366
+        ]
+      ],
+      "start": {
+        "id": "reload-box"
+      },
+      "end": {
+        "id": "closetabs-box"
+      },
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "a6",
+      "type": "arrow",
+      "x": 268,
+      "y": 290,
+      "strokeWidth": 2,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          74,
+          0
+        ]
+      ],
+      "start": {
+        "id": "closetabs-box"
+      },
+      "end": {
+        "id": "recreate-box"
+      },
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "a7",
+      "type": "arrow",
+      "x": 578,
+      "y": 290,
+      "strokeWidth": 2,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          74,
+          0
+        ]
+      ],
+      "start": {
+        "id": "recreate-box"
+      },
+      "end": {
+        "id": "startup-box"
+      },
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:42:44.187Z",
+      "version": 1
+    },
+    {
+      "id": "roles-box",
+      "type": "rectangle",
+      "x": 680,
+      "y": 370,
+      "width": 220,
+      "height": 50,
+      "backgroundColor": "#ffc9c9",
+      "label": {
+        "text": "Roles Override (filtered)"
+      },
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:44:17.178Z",
+      "version": 5
+    },
+    {
+      "id": "security-box",
+      "type": "rectangle",
+      "x": 680,
+      "y": 470,
+      "width": 220,
+      "height": 50,
+      "backgroundColor": "#ffc9c9",
+      "label": {
+        "text": "XAF Security System"
+      },
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:44:17.514Z",
+      "version": 5
+    },
+    {
+      "id": "footer",
+      "type": "text",
+      "x": 130,
+      "y": 555,
+      "strokeColor": "#868e96",
+      "text": "\"Default\" role always active  •  Row selection in popup  •  Blazor + WinForms",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:42:44.187Z",
+      "updatedAt": "2026-03-22T09:43:58.892Z",
+      "version": 3
+    },
+    {
+      "id": "a8-v2",
+      "type": "arrow",
+      "x": 745.3925608722695,
+      "y": 122.89462132084427,
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          39.21487825546092,
+          239.21075735831144
+        ]
+      ],
+      "start": {
+        "id": "filter-box"
+      },
+      "end": {
+        "id": "roles-box"
+      },
+      "createdAt": "2026-03-22T09:44:23.752Z",
+      "updatedAt": "2026-03-22T09:44:23.752Z",
+      "version": 1
+    },
+    {
+      "id": "a9-v2",
+      "type": "arrow",
+      "x": 790,
+      "y": 428,
+      "strokeWidth": 2,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          34
+        ]
+      ],
+      "start": {
+        "id": "roles-box"
+      },
+      "end": {
+        "id": "security-box"
+      },
+      "createdAt": "2026-03-22T09:44:23.752Z",
+      "updatedAt": "2026-03-22T09:44:23.752Z",
+      "version": 1
+    },
+    {
+      "id": "label-filters",
+      "type": "text",
+      "x": 910,
+      "y": 220,
+      "strokeColor": "#868e96",
+      "text": "filters",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:44:23.752Z",
+      "updatedAt": "2026-03-22T09:44:23.752Z",
+      "version": 1
+    },
+    {
+      "id": "label-evaluates",
+      "type": "text",
+      "x": 910,
+      "y": 430,
+      "strokeColor": "#868e96",
+      "text": "evaluates",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "createdAt": "2026-03-22T09:44:23.752Z",
+      "updatedAt": "2026-03-22T09:44:23.752Z",
+      "version": 1
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": null
+  }
+}
