@@ -29,5 +29,13 @@ ehthumbs.db
 Desktop.ini
 .DS_Store
 
+## Logs
+**/logs/
+excalidraw.log
+
+## Debug screenshots
+bug*.png
+error*.png
+
 ## Docker
 .env
