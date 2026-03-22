@@ -112,7 +112,7 @@ namespace XafRoleChooser.Module.DatabaseUpdate
                 role.AddTypePermissionsRecursively<Company>(SecurityOperations.Read, SecurityPermissionState.Allow);
                 // Navigation
                 role.AddNavigationPermission(@"Application/NavigationItems/Items/HR/Items/Employee_ListView", SecurityPermissionState.Allow);
-                role.AddNavigationPermission(@"Application/NavigationItems/Items/Company/Items/Company_ListView", SecurityPermissionState.Allow);
+                role.AddNavigationPermission(@"Application/NavigationItems/Items/CRM/Items/Company_ListView", SecurityPermissionState.Allow);
             }
             return role;
         }
@@ -134,7 +134,7 @@ namespace XafRoleChooser.Module.DatabaseUpdate
                 role.AddTypePermissionsRecursively<OrderLine>(SecurityOperations.Read, SecurityPermissionState.Allow);
                 // Navigation
                 role.AddNavigationPermission(@"Application/NavigationItems/Items/Projects/Items/Project_ListView", SecurityPermissionState.Allow);
-                role.AddNavigationPermission(@"Application/NavigationItems/Items/Company/Items/Company_ListView", SecurityPermissionState.Allow);
+                role.AddNavigationPermission(@"Application/NavigationItems/Items/CRM/Items/Company_ListView", SecurityPermissionState.Allow);
                 role.AddNavigationPermission(@"Application/NavigationItems/Items/Sales/Items/Order_ListView", SecurityPermissionState.Allow);
             }
             return role;
@@ -157,7 +157,7 @@ namespace XafRoleChooser.Module.DatabaseUpdate
                 // Navigation
                 role.AddNavigationPermission(@"Application/NavigationItems/Items/Sales/Items/Order_ListView", SecurityPermissionState.Allow);
                 role.AddNavigationPermission(@"Application/NavigationItems/Items/Sales/Items/OrderLine_ListView", SecurityPermissionState.Allow);
-                role.AddNavigationPermission(@"Application/NavigationItems/Items/Company/Items/Company_ListView", SecurityPermissionState.Allow);
+                role.AddNavigationPermission(@"Application/NavigationItems/Items/CRM/Items/Company_ListView", SecurityPermissionState.Allow);
                 role.AddNavigationPermission(@"Application/NavigationItems/Items/Projects/Items/Project_ListView", SecurityPermissionState.Allow);
             }
             return role;
@@ -180,7 +180,8 @@ namespace XafRoleChooser.Module.DatabaseUpdate
                 // Navigation
                 role.AddNavigationPermission(@"Application/NavigationItems/Items/Finance/Items/Invoice_ListView", SecurityPermissionState.Allow);
                 role.AddNavigationPermission(@"Application/NavigationItems/Items/Sales/Items/Order_ListView", SecurityPermissionState.Allow);
-                role.AddNavigationPermission(@"Application/NavigationItems/Items/Company/Items/Company_ListView", SecurityPermissionState.Allow);
+                role.AddNavigationPermission(@"Application/NavigationItems/Items/Sales/Items/OrderLine_ListView", SecurityPermissionState.Allow);
+                role.AddNavigationPermission(@"Application/NavigationItems/Items/CRM/Items/Company_ListView", SecurityPermissionState.Allow);
             }
             return role;
         }

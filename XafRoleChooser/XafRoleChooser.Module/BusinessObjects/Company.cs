@@ -8,7 +8,7 @@ namespace XafRoleChooser.Module.BusinessObjects
 {
     [DefaultClassOptions]
     [DefaultProperty(nameof(Name))]
-    [NavigationItem("Company")]
+    [NavigationItem("CRM")]
     public class Company : BaseObject
     {
         [Required]

@@ -42,21 +42,4 @@ namespace XafRoleChooser.Module.BusinessObjects
         [System.ComponentModel.DataAnnotations.Schema.NotMapped]
         public decimal Total => Lines?.Sum(l => l.LineTotal) ?? 0;
     }
-
-    [DefaultClassOptions]
-    [NavigationItem("Sales")]
-    public class OrderLine : BaseObject
-    {
-        [Required]
-        public virtual string ProductName { get; set; }
-
-        public virtual int Quantity { get; set; }
-
-        public virtual decimal UnitPrice { get; set; }
-
-        public virtual Order Order { get; set; }
-
-        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-        public decimal LineTotal => Quantity * UnitPrice;
-    }
 }

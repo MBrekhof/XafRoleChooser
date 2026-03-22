@@ -22,6 +22,11 @@ public interface IActiveRoleFilter
     Guid? AlwaysActiveRoleId { get; }
 
     /// <summary>
+    /// The always-active role name, cached during Initialize.
+    /// </summary>
+    string? AlwaysActiveRoleName { get; }
+
+    /// <summary>
     /// Set the available roles for the current user. Called after login.
     /// </summary>
     void Initialize(Guid? alwaysActiveRoleId, IEnumerable<(Guid Id, string Name)> availableRoles);
