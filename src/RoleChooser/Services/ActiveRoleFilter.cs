@@ -12,6 +12,8 @@ public class ActiveRoleFilter : IActiveRoleFilter
     public IReadOnlyList<(Guid Id, string Name)> AvailableRoles => _availableRoles;
     public Guid? AlwaysActiveRoleId { get; private set; }
     public string? AlwaysActiveRoleName { get; private set; }
+    public bool IsFiltering => _activeRoleIds.Count < _availableRoles.Count;
+    public bool SelectionMade { get; private set; }
 
     public ActiveRoleFilter(ILogger<ActiveRoleFilter>? logger = null)
     {
@@ -20,6 +22,7 @@ public class ActiveRoleFilter : IActiveRoleFilter
 
     public void Initialize(Guid? alwaysActiveRoleId, IEnumerable<(Guid Id, string Name)> availableRoles)
     {
+        SelectionMade = false;
         AlwaysActiveRoleId = alwaysActiveRoleId;
         _availableRoles = availableRoles.ToList();
         _activeRoleIds = new HashSet<Guid>(_availableRoles.Select(r => r.Id));
@@ -36,6 +39,7 @@ public class ActiveRoleFilter : IActiveRoleFilter
     public void SetActiveRoles(IEnumerable<Guid> roleIds)
     {
         _activeRoleIds = new HashSet<Guid>(roleIds);
+        SelectionMade = true;
 
         var activeNames = _availableRoles
             .Where(r => _activeRoleIds.Contains(r.Id))
