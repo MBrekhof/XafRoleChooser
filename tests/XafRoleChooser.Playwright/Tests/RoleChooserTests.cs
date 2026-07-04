@@ -97,12 +97,16 @@ public class RoleChooserTests : PageTest
         await _mainPage.AcceptRoleChooserSelectingAllAsync();
         await _mainPage.WaitForNavigationRefresh();
 
+        // Deactivating the only Tools action removes the whole Tools ribbon tab.
         var toolsTab = Page.GetByText("Tools", new() { Exact = true }).First;
-        await toolsTab.ClickAsync();
-        await Page.WaitForTimeoutAsync(500);
-
-        var button = Page.Locator("button[data-action-name='Active Roles']");
-        Assert.That(await button.IsVisibleAsync(), Is.False,
-            "Active Roles action should be inactive/gone once a login-time selection has been made");
+        if (await toolsTab.IsVisibleAsync())
+        {
+            await toolsTab.ClickAsync();
+            await Page.WaitForTimeoutAsync(500);
+            var button = Page.Locator("button[data-action-name='Active Roles']:not([dxbl-virtual-el])").First;
+            Assert.That(await button.IsVisibleAsync(), Is.False,
+                "Active Roles action should be inactive/gone once a login-time selection has been made");
+        }
+        // else: Tools tab gone entirely — the action is gone with it, requirement satisfied
     }
 }

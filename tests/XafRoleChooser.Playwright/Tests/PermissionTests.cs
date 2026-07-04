@@ -5,6 +5,10 @@ using XafRoleChooser.Playwright.PageObjects;
 
 namespace XafRoleChooser.Playwright.Tests;
 
+/// <summary>
+/// Permission-combination checks, adapted to the login-time interstitial flow
+/// (the mid-session Tools > Active Roles switch no longer exists).
+/// </summary>
 [TestFixture]
 public class PermissionTests : PageTest
 {
@@ -16,50 +20,50 @@ public class PermissionTests : PageTest
     {
         _loginPage = new LoginPage(Page);
         _mainPage = new MainPage(Page);
+        await _loginPage.NavigateTo();
     }
 
     [Test]
     public async Task DefaultRoleOnly_ShouldHaveLimitedNavigation()
     {
-        await _loginPage.NavigateTo();
-        await _loginPage.Login(TestConstants.AdminUser);
+        await _loginPage.Login(TestConstants.RegularUser);
         await _mainPage.WaitForXafReady();
 
-        // With only Default role active (no additional roles selected),
-        // admin-level navigation should not be accessible
-        // The exact items depend on role permissions configured in the app
+        Assert.That(await _mainPage.IsLoggedIn(), Is.True);
+        Assert.That(await _mainPage.IsNavGroupHidden(TestConstants.NavHR), Is.True,
+            "HR navigation should be hidden with only the Default role");
+        Assert.That(await _mainPage.IsNavGroupHidden(TestConstants.NavFinance), Is.True,
+            "Finance navigation should be hidden with only the Default role");
     }
 
     [Test]
     public async Task AdminRole_WhenActivated_ShouldShowAdminNavigation()
     {
-        await _loginPage.NavigateTo();
         await _loginPage.Login(TestConstants.AdminUser);
-        await _mainPage.WaitForXafReady();
+        await _mainPage.WaitForRoleChooserPopupAsync();
 
-        // Activate admin role
-        await _mainPage.ClickActiveRolesButton();
-        await _mainPage.SelectRoleInChooser("Administrators");
+        // Select only Administrators in the login-time chooser
+        await _mainPage.SelectRoleInChooser(TestConstants.RoleAdministrators);
         await _mainPage.AcceptRoleChooser();
-        await _mainPage.WaitForXafReady();
+        await _mainPage.WaitForNavigationRefresh();
 
-        // Admin navigation items should now be visible
-        // Placeholder: check for Users or Roles navigation item
-        var usersNav = Page.Locator(".xaf-navigation a:has-text('Users'), .nav-item:has-text('Users')");
-        // Note: actual assertion depends on the configured navigation
+        // Administrators (IsAdministrative) grants access to all business nav groups
+        Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavHR), Is.True,
+            "HR navigation should be visible with the Administrators role");
+        Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavSales), Is.True,
+            "Sales navigation should be visible with the Administrators role");
     }
 
     [Test]
     public async Task MultipleRoles_ShouldCombinePermissions()
     {
-        await _loginPage.NavigateTo();
         await _loginPage.Login(TestConstants.AdminUser);
-        await _mainPage.WaitForXafReady();
 
-        // This test verifies that selecting multiple roles combines their permissions
-        await _mainPage.ClickActiveRolesButton();
-        // Select all available roles
-        await _mainPage.AcceptRoleChooser();
-        await _mainPage.WaitForXafReady();
+        // Select all roles in the login-time chooser — permissions combine
+        await _mainPage.AcceptRoleChooserSelectingAllAsync();
+        await _mainPage.WaitForNavigationRefresh();
+
+        Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavHR), Is.True);
+        Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavFinance), Is.True);
     }
 }

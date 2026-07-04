@@ -95,9 +95,16 @@ public class MainPage : Infrastructure.XafPageBase
         await Page.ScreenshotAsync(new() { Path = $"C:/Projects/XafRoleChooser/debug_{name}.png", FullPage = true });
     }
 
+    /// <summary>
+    /// Log Off lives in the account dropdown. The account button has no text —
+    /// only title/aria-label with the username — so target data-action-name='Account'.
+    /// </summary>
     public async Task Logout()
     {
-        await Page.ClickAsync("button:has-text('Log Off'), .xaf-logoff-button, a:has-text('Log Off')");
+        await Page.Locator("button[data-action-name='Account']").First.ClickAsync();
+        var logOff = Page.Locator("button:has-text('Log Off'):not([dxbl-virtual-el])").First;
+        await logOff.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
+        await logOff.ClickAsync();
         await WaitForXafReady();
     }
 
@@ -126,7 +133,8 @@ public class MainPage : Infrastructure.XafPageBase
     public async Task CancelRoleChooserAsync()
     {
         var popup = Page.Locator("dxbl-popup-root");
-        await popup.Locator("button:has-text('Cancel')").ClickAsync();
+        // DevExpress renders a hidden [dxbl-virtual-el] twin of every toolbar button
+        await popup.Locator("button:has-text('Cancel'):not([dxbl-virtual-el])").ClickAsync();
         await WaitForXafReady();
     }
 
@@ -134,6 +142,8 @@ public class MainPage : Infrastructure.XafPageBase
 
     /// <summary>
     /// Expands the given nav sidebar group (if collapsed) and clicks the named item.
+    /// Force-clicks: an .xaf-navigation-link-click-area overlay intercepts pointer
+    /// events over the text spans, so normal actionability checks never succeed.
     /// </summary>
     public async Task NavigateAsync(string groupName, string itemName)
     {
@@ -141,16 +151,17 @@ public class MainPage : Infrastructure.XafPageBase
         if (!await item.IsVisibleAsync())
         {
             var group = Page.Locator($".xaf-accordion >> text='{groupName}'").First;
-            await group.ClickAsync();
-            await Page.WaitForTimeoutAsync(300);
+            await group.ClickAsync(new() { Force = true });
+            await Page.WaitForTimeoutAsync(500);
         }
-        await item.ClickAsync();
+        await item.ClickAsync(new() { Force = true });
         await WaitForXafReady();
     }
 
     public async Task OpenListViewRowAsync(string rowText)
     {
-        await Page.Locator($"tr:has-text('{rowText}')").First.ClickAsync();
+        // Gridcell by accessible name — tr:has-text would match the header row too
+        await Page.GetByRole(AriaRole.Gridcell, new() { Name = rowText, Exact = true }).First.ClickAsync();
         await WaitForXafReady();
     }
 
@@ -159,11 +170,11 @@ public class MainPage : Infrastructure.XafPageBase
 
     public async Task LinkObjectAsync(string roleName)
     {
-        await Page.Locator("button.xaf-action[data-action-name='Link']").ClickAsync();
+        await Page.Locator("button.xaf-action[data-action-name='Link']:not([dxbl-virtual-el])").ClickAsync();
         var popup = Page.Locator("dxbl-popup-root").Last;
         var row = popup.Locator($"tr:has-text('{roleName}')").First;
         await row.Locator("td.dxbl-grid-selection-cell").ClickAsync();
-        await popup.Locator("button:has-text('OK')").ClickAsync();
+        await popup.Locator("button:has-text('OK'):not([dxbl-virtual-el])").ClickAsync();
         await WaitForXafReady();
     }
 
@@ -171,9 +182,10 @@ public class MainPage : Infrastructure.XafPageBase
     {
         var row = RolesGridRow(roleName);
         await row.Locator("td.dxbl-grid-selection-cell").ClickAsync();
-        await Page.Locator("button.xaf-action[data-action-name='Unlink']").ClickAsync();
+        await Page.Locator("button.xaf-action[data-action-name='Unlink']:not([dxbl-virtual-el])").ClickAsync();
 
-        var confirmYes = Page.Locator("button:has-text('Yes')");
+        // Unlink always raises a Yes/No confirmation dialog
+        var confirmYes = Page.Locator("button:has-text('Yes'):not([dxbl-virtual-el])").First;
         await confirmYes.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5000 });
         await confirmYes.ClickAsync();
         await WaitForXafReady();
@@ -181,7 +193,14 @@ public class MainPage : Infrastructure.XafPageBase
 
     public async Task SaveAndCloseAsync()
     {
-        await Page.Locator("button.xaf-action[data-action-name='Save']").ClickAsync();
+        // Save has xaf-primary-toolbar-btn (not xaf-action) — select by data-action-name only.
+        // Link/Unlink on a view-mode DetailView commit immediately, leaving Save disabled —
+        // only click when there is actually a pending change.
+        var save = Page.Locator("button[data-action-name='Save']:not([dxbl-virtual-el])").First;
+        if (await save.IsEnabledAsync())
+        {
+            await save.ClickAsync();
+        }
         await WaitForXafReady();
     }
 }
