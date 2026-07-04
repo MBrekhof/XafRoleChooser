@@ -12,17 +12,6 @@ public class MainPage : Infrastructure.XafPageBase
         return await mainView.First.IsVisibleAsync();
     }
 
-    public async Task ClickActiveRolesButton()
-    {
-        // The Active Roles button is on the Tools tab in the XAF Blazor ribbon
-        var toolsTab = Page.GetByText("Tools", new() { Exact = true }).First;
-        await toolsTab.ClickAsync();
-        await Page.WaitForTimeoutAsync(500);
-
-        await Page.Locator("button[data-action-name='Active Roles']").ClickAsync();
-        await WaitForXafReady();
-    }
-
     public async Task SelectRoleInChooser(string roleName)
     {
         // Scope to the popup modal to avoid matching background page elements

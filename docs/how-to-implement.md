@@ -17,6 +17,10 @@ This is useful when users have multiple roles (e.g., Manager, DataEntry, Reports
 - Your **User type must inherit from `PermissionPolicyUser`** (standard XAF security), which you will change to inherit from `RoleChooserUserBase` during integration.
 - **Every user must be assigned the always-active role** (e.g. "Default"). The module does not validate this — a user without it can end up with no active permissions at all.
 
+## Breaking Changes
+
+This release adds `IsFiltering` and `SelectionMade` to the `IActiveRoleFilter` interface. If your application implements `IActiveRoleFilter` itself rather than using the supplied `ActiveRoleFilter`, add these two members or your implementation will fail to compile.
+
 ## Step-by-Step Integration
 
 ### Step 1: Add the RoleChooser Project Reference

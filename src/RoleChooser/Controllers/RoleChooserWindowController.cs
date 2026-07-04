@@ -48,7 +48,10 @@ public class RoleChooserWindowController : WindowController
         // sets them on MDI child windows), so Window.ViewChanged is the wrong signal.
         // Application.ViewShown fires for every frame that shows a view — including
         // the startup view right after login.
-        Application.ViewShown += Application_ViewShown;
+        if (!_popupShown)
+        {
+            Application.ViewShown += Application_ViewShown;
+        }
     }
 
     protected override void OnDeactivated()
