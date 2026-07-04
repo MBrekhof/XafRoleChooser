@@ -44,15 +44,16 @@ public class RoleChooserWindowController : WindowController
         _roleFilter = Application.ServiceProvider.GetService<IActiveRoleFilter>();
         _logger = Application.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger<RoleChooserWindowController>();
         UpdateActionActive();
-        Window.ViewChanged += Window_ViewChanged;
-        // View may already be assigned before this controller activates —
-        // the base WindowController defends against the same case.
-        TryShowLoginTimeChooser();
+        // Views never land on the Blazor MDI main window (BlazorMdiShowViewStrategy
+        // sets them on MDI child windows), so Window.ViewChanged is the wrong signal.
+        // Application.ViewShown fires for every frame that shows a view — including
+        // the startup view right after login.
+        Application.ViewShown += Application_ViewShown;
     }
 
     protected override void OnDeactivated()
     {
-        Window.ViewChanged -= Window_ViewChanged;
+        Application.ViewShown -= Application_ViewShown;
         _roleFilter = null;
         _logger = null;
         base.OnDeactivated();
@@ -64,25 +65,31 @@ public class RoleChooserWindowController : WindowController
             _roleFilter is { SelectionMade: false } && _roleFilter.AvailableRoles.Count >= 2);
     }
 
-    private void Window_ViewChanged(object? sender, ViewChangedEventArgs e)
+    private void Application_ViewShown(object? sender, ViewShownEventArgs e)
     {
         TryShowLoginTimeChooser();
     }
 
     private void TryShowLoginTimeChooser()
     {
-        if (_popupShown || Window.View == null) return;
+        if (_popupShown) return;
         if (_roleFilter is not { SelectionMade: false } || _roleFilter.AvailableRoles.Count < 2)
         {
             _logger?.LogInformation("Login-time chooser skipped — SelectionMade: {SelectionMade}, optional roles: {Count}",
                 _roleFilter?.SelectionMade, _roleFilter?.AvailableRoles.Count ?? 0);
-            _popupShown = true;
+            MarkShownAndUnsubscribe();
             return;
         }
 
-        _popupShown = true;
+        MarkShownAndUnsubscribe();
         _logger?.LogInformation("Showing login-time role chooser — {Count} optional roles", _roleFilter.AvailableRoles.Count);
         ShowChooserPopup();
+    }
+
+    private void MarkShownAndUnsubscribe()
+    {
+        _popupShown = true;
+        Application.ViewShown -= Application_ViewShown;
     }
 
     /// <summary>
