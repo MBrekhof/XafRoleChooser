@@ -1,5 +1,14 @@
 # XAF Role Chooser — Design Document
 
+> **⚠️ SUPERSEDED (2026-07-04).** This document describes the original *mid-session* role-switching
+> design — a Tools dropdown that changed active roles at any time with live permission updates and no
+> re-login. That approach was replaced by a **one-time login-time role selection**. The mid-session
+> design silently broke role administration (the `Roles` override returned a detached copy, so
+> admin Link/Unlink writes vanished) and fought XAF's stable-per-session permission model. It is kept
+> here as a historical record only. For the current design and the rationale for the change, see
+> [`how-to-implement.md`](../how-to-implement.md) ("Why Login-Time Selection") and the implementation
+> plan `docs/superpowers/plans/2026-07-04-login-time-role-selection.md`.
+
 ## Goal
 
 Reusable XAF module that adds a multi-select toolbar dropdown allowing users to choose which of their assigned roles are active for the current session. "Default" role is always active and hidden from the chooser. No restart or re-login required — permissions update live.

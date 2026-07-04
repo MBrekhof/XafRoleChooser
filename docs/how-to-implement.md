@@ -10,6 +10,22 @@ The RoleChooser module lets users choose which of their assigned roles are activ
 
 This is useful when users have multiple roles (e.g., Manager, DataEntry, Reports) and want to start a session with a deliberately narrowed set of permissions instead of always operating with the union of every assigned role.
 
+## Why Login-Time Selection (and not mid-session switching)
+
+An earlier version of this module let users change their active roles at any time from a Tools dropdown, with permissions updating live — no re-login. That approach was abandoned. Two problems, one of them a genuine security defect, drove the redesign to a one-time login-time choice.
+
+**1. Mid-session switching silently broke role administration.** The mechanism that filters a session's roles is an override of the virtual `PermissionPolicyUser.Roles` property. But that is the *same* property XAF writes through when an administrator links or unlinks a role on the User detail view. While a filter was active, the override returned a detached `allRoles.Where(...).ToList()` copy; XAF mutated that throwaway list and the join-table write silently evaporated. An admin would remove a role, see a successful save, and the role would still be assigned — a permission an administrator believed revoked was not. This is exactly why the downstream WLNCentral application removed its role switcher entirely (tracked there as ROLE-001), and it is the defect this module now fixes.
+
+**2. Mid-session switching fights XAF's permission model.** XAF builds navigation, views, and permission evaluation assuming a stable role set for the lifetime of a session. Changing that set mid-flight means forcibly closing every open view (otherwise stale, now-unauthorized data stays on screen), rebuilding the navigation tree, and re-evaluating permissions on the fly — a pile of fragile, platform-specific reflection that broke repeatedly across Blazor and WinForms.
+
+**The insight:** XAF wants a session's permissions to be effectively immutable. Rather than fight that, choose the narrowed role set once — at the one moment before any view, navigation item, or permission cache has been built, i.e. right after login — and treat it as fixed for the session. This buys three things:
+
+- **Role administration works again.** Because the choice happens once and most sessions keep every role, the `Roles` override is a **pass-through** to the real tracked collection except in a deliberately narrowed session (see "How It Works"). So Link/Unlink on the User detail view persists normally in the common case.
+- **No fragile teardown.** Nothing is open when the choice is made, so there are no tabs to close and no navigation to tear down and rebuild — that entire machinery was deleted.
+- **Permissions evaluate and cache normally** for the rest of the session.
+
+**Trade-off, deliberately accepted:** changing your active roles now requires logging out and back in. Given the feature's purpose — starting a session with a narrowed permission set, mostly for administrators and power users previewing lower-privilege behavior — that cost is small, and the alternative silently corrupted role administration.
+
 ## Prerequisites
 
 - **DevExpress XAF v25.2+** with EF Core
