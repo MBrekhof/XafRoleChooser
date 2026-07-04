@@ -45,6 +45,9 @@ public class RoleChooserWindowController : WindowController
         _logger = Application.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger<RoleChooserWindowController>();
         UpdateActionActive();
         Window.ViewChanged += Window_ViewChanged;
+        // View may already be assigned before this controller activates —
+        // the base WindowController defends against the same case.
+        TryShowLoginTimeChooser();
     }
 
     protected override void OnDeactivated()
@@ -62,6 +65,11 @@ public class RoleChooserWindowController : WindowController
     }
 
     private void Window_ViewChanged(object? sender, ViewChangedEventArgs e)
+    {
+        TryShowLoginTimeChooser();
+    }
+
+    private void TryShowLoginTimeChooser()
     {
         if (_popupShown || Window.View == null) return;
         if (_roleFilter is not { SelectionMade: false } || _roleFilter.AvailableRoles.Count < 2)
