@@ -5,6 +5,13 @@ using XafRoleChooser.Playwright.PageObjects;
 
 namespace XafRoleChooser.Playwright.Tests;
 
+/// <summary>
+/// Covers the login-time interstitial: auto-appearance, the skip rule for users
+/// with fewer than two optional roles, narrowing via row selection, cancel, and
+/// the Tools ribbon action going away once a selection has been made.
+/// Rewritten for the login-time flow — the old mid-session "click Tools > Active
+/// Roles to switch" behavior no longer exists.
+/// </summary>
 [TestFixture]
 public class RoleChooserTests : PageTest
 {
@@ -16,107 +23,86 @@ public class RoleChooserTests : PageTest
     {
         _loginPage = new LoginPage(Page);
         _mainPage = new MainPage(Page);
+        await _loginPage.NavigateTo();
     }
 
     [Test]
-    public async Task ActiveRolesButton_ShouldBeVisible_AfterLogin()
+    public async Task Login_MultiRole_ShowsChooserAutomatically()
     {
-        await _loginPage.NavigateTo();
-        await _loginPage.Login(TestConstants.AdminUser);
+        await _loginPage.Login(TestConstants.MultiRoleUser);
+
+        Assert.That(await _mainPage.IsRoleChooserPopupVisible(), Is.True,
+            "Active Role Selection popup should appear automatically for a user with >=2 optional roles");
+    }
+
+    [Test]
+    public async Task Login_DefaultOnlyUser_SkipsChooser()
+    {
+        await _loginPage.Login(TestConstants.RegularUser);
         await _mainPage.WaitForXafReady();
 
-        // The Active Roles button is on the Tools tab
+        Assert.That(await _mainPage.IsRoleChooserPopupVisible(), Is.False,
+            "Chooser should not appear for a user with 0 optional roles");
+        Assert.That(await _mainPage.IsLoggedIn(), Is.True, "App should be usable immediately");
+    }
+
+    [Test]
+    public async Task Login_SingleOptionalRole_SkipsChooser()
+    {
+        await _loginPage.Login(TestConstants.SingleRoleUser);
+        await _mainPage.WaitForXafReady();
+
+        Assert.That(await _mainPage.IsRoleChooserPopupVisible(), Is.False,
+            "Chooser should not appear for a user with exactly 1 optional role");
+        Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavSales), Is.True,
+            "Sales navigation should be visible — the single optional role stays active without narrowing");
+    }
+
+    [Test]
+    public async Task Chooser_SelectSubset_NavigationReflectsSelection()
+    {
+        await _loginPage.Login(TestConstants.MultiRoleUser);
+        Assert.That(await _mainPage.IsRoleChooserPopupVisible(), Is.True);
+
+        await _mainPage.SelectRoleInChooser(TestConstants.RoleHRManager);
+        await _mainPage.AcceptRoleChooser();
+        await _mainPage.WaitForNavigationRefresh();
+
+        Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavHR), Is.True,
+            "HR navigation should be visible with HR Manager selected");
+        Assert.That(await _mainPage.IsNavGroupHidden(TestConstants.NavFinance), Is.True,
+            "Finance navigation should be hidden when not selected");
+    }
+
+    [Test]
+    public async Task Chooser_Cancel_KeepsAllRoles()
+    {
+        await _loginPage.Login(TestConstants.MultiRoleUser);
+        Assert.That(await _mainPage.IsRoleChooserPopupVisible(), Is.True);
+
+        await _mainPage.CancelRoleChooserAsync();
+        await _mainPage.WaitForNavigationRefresh();
+
+        Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavHR), Is.True);
+        Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavSales), Is.True);
+        Assert.That(await _mainPage.IsNavGroupVisible(TestConstants.NavFinance), Is.True);
+    }
+
+    [Test]
+    public async Task Chooser_AfterSelection_ToolsActionGone()
+    {
+        await _loginPage.Login(TestConstants.MultiRoleUser);
+        Assert.That(await _mainPage.IsRoleChooserPopupVisible(), Is.True);
+
+        await _mainPage.AcceptRoleChooserSelectingAllAsync();
+        await _mainPage.WaitForNavigationRefresh();
+
         var toolsTab = Page.GetByText("Tools", new() { Exact = true }).First;
         await toolsTab.ClickAsync();
         await Page.WaitForTimeoutAsync(500);
 
         var button = Page.Locator("button[data-action-name='Active Roles']");
-        await button.WaitForAsync(new() { Timeout = TestConstants.DefaultTimeout });
-        Assert.That(await button.IsVisibleAsync(), Is.True);
-    }
-
-    [Test]
-    public async Task RoleChooserPopup_ShouldOpen_WhenButtonClicked()
-    {
-        await _loginPage.NavigateTo();
-        await _loginPage.Login(TestConstants.AdminUser);
-        await _mainPage.WaitForXafReady();
-
-        await _mainPage.ClickActiveRolesButton();
-        Assert.That(await _mainPage.IsRoleChooserPopupVisible(), Is.True);
-    }
-
-    [Test]
-    public async Task RoleChooser_ShouldShowAssignedRoles_ExcludingDefault()
-    {
-        await _loginPage.NavigateTo();
-        await _loginPage.Login(TestConstants.AdminUser);
-        await _mainPage.WaitForXafReady();
-
-        await _mainPage.ClickActiveRolesButton();
-
-        // "Default" role should NOT be visible in the chooser
-        var defaultRole = Page.Locator("text=Default");
-        // "Administrators" role SHOULD be visible (or other assigned roles)
-        var adminRole = Page.Locator("text=Administrators");
-
-        Assert.That(await adminRole.IsVisibleAsync(), Is.True, "Assigned roles should be visible in chooser");
-    }
-
-    [Test]
-    public async Task RoleChooser_ShouldActivateRole_WhenCheckedAndAccepted()
-    {
-        await _loginPage.NavigateTo();
-        await _loginPage.Login(TestConstants.AdminUser);
-        await _mainPage.WaitForXafReady();
-
-        await _mainPage.ClickActiveRolesButton();
-        await _mainPage.SelectRoleInChooser("Administrators");
-        await _mainPage.AcceptRoleChooser();
-
-        // After activating the admin role, admin navigation items should be visible
-        // This is a placeholder assertion - actual items depend on the app's navigation
-        await _mainPage.WaitForXafReady();
-    }
-
-    [Test]
-    public async Task RoleChooser_ShouldDeactivateRole_WhenUncheckedAndAccepted()
-    {
-        await _loginPage.NavigateTo();
-        await _loginPage.Login(TestConstants.AdminUser);
-        await _mainPage.WaitForXafReady();
-
-        // First activate a role
-        await _mainPage.ClickActiveRolesButton();
-        await _mainPage.SelectRoleInChooser("Administrators");
-        await _mainPage.AcceptRoleChooser();
-        await _mainPage.WaitForXafReady();
-
-        // Then deactivate it
-        await _mainPage.ClickActiveRolesButton();
-        await _mainPage.SelectRoleInChooser("Administrators");
-        await _mainPage.AcceptRoleChooser();
-        await _mainPage.WaitForXafReady();
-
-        // Permissions should be reverted
-    }
-
-    [Test]
-    public async Task RoleChooser_ShouldPersistSelections_AcrossPopupOpens()
-    {
-        await _loginPage.NavigateTo();
-        await _loginPage.Login(TestConstants.AdminUser);
-        await _mainPage.WaitForXafReady();
-
-        // Activate a role
-        await _mainPage.ClickActiveRolesButton();
-        await _mainPage.SelectRoleInChooser("Administrators");
-        await _mainPage.AcceptRoleChooser();
-        await _mainPage.WaitForXafReady();
-
-        // Re-open the chooser - the role should still be checked
-        await _mainPage.ClickActiveRolesButton();
-        // Verify the checkbox state is preserved
-        Assert.That(await _mainPage.IsRoleChooserPopupVisible(), Is.True);
+        Assert.That(await button.IsVisibleAsync(), Is.False,
+            "Active Roles action should be inactive/gone once a login-time selection has been made");
     }
 }

@@ -71,6 +71,16 @@ namespace XafRoleChooser.Module.DatabaseUpdate
                 });
             }
 
+            if (userManager.FindUserByName<ApplicationUser>(ObjectSpace, "SingleRole") == null)
+            {
+                string EmptyPassword = "";
+                _ = userManager.CreateUser<ApplicationUser>(ObjectSpace, "SingleRole", EmptyPassword, (user) =>
+                {
+                    user.Roles.Add(defaultRole);
+                    user.Roles.Add(salesRole);
+                });
+            }
+
             ObjectSpace.CommitChanges();
 
             SeedSampleData();
