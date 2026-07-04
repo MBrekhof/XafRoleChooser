@@ -98,15 +98,17 @@ public class RoleChooserTests : PageTest
         await _mainPage.WaitForNavigationRefresh();
 
         // Deactivating the only Tools action removes the whole Tools ribbon tab.
+        // Clicking Tools when it's visible makes the check stronger (exercises the
+        // tab), but the decisive assertion below must hold regardless of which
+        // branch fires — the else branch used to have no assertion at all.
         var toolsTab = Page.GetByText("Tools", new() { Exact = true }).First;
         if (await toolsTab.IsVisibleAsync())
         {
             await toolsTab.ClickAsync();
             await Page.WaitForTimeoutAsync(500);
-            var button = Page.Locator("button[data-action-name='Active Roles']:not([dxbl-virtual-el])").First;
-            Assert.That(await button.IsVisibleAsync(), Is.False,
-                "Active Roles action should be inactive/gone once a login-time selection has been made");
         }
-        // else: Tools tab gone entirely — the action is gone with it, requirement satisfied
+
+        Assert.That(await Page.Locator("button.xaf-action[data-action-name='Active Roles']:not([dxbl-virtual-el])").CountAsync(), Is.EqualTo(0),
+            "Active Roles action should be deactivated after the session selection");
     }
 }
