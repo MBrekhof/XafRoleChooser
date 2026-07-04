@@ -40,7 +40,7 @@ Tab closing on role switch works cross-platform via reflection: Blazor uses `Bla
 
 Note: XAF Blazor renders booleans as display-only SVGs in popup ListViews, so inline editing doesn't work. Row selection is used instead. `ActiveRoleFilter` has an optional logger (debug logging removed from `IsRoleActive` to avoid spam). `AlwaysActiveRoleName` is cached on `IActiveRoleFilter` during `Initialize()`.
 
-Consuming apps must: (1) inherit user from `RoleChooserUserBase`, (2) call `services.AddRoleChooser()`, (3) register `.Add<RoleChooserModule>()`.
+Consuming apps must: (1) inherit user from `RoleChooserUserBase`, (2) call `services.AddRoleChooser()`, (3) register `.Add<RoleChooserModule>()`, (4) assign **every user** the always-active role ("Default") — without it `AlwaysActiveRoleId` is null and role switching can strip the user of all access (only logout/login recovers); the module does not validate this.
 
 ## Demo Business Entities
 
