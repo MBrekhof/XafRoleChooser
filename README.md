@@ -132,7 +132,7 @@ The always-active role is excluded from the role chooser popup entirely. It is a
 │  │ RoleChooser         │   │ ApplicationUser            │ │
 │  │ WindowController    │   │ : RoleChooserUserBase      │ │
 │  │                    │   │                           │ │
-│  │ [Active Roles] btn │   │ Roles → filtered by ──────┼─┼──► SecurityStrategy
+│  │ Auto via ViewShown │   │ Roles → filtered by ──────┼─┼──► SecurityStrategy
 │  │      ↓             │   │        IActiveRoleFilter   │ │   evaluates only
 │  │ Popup ListView     │   │ GetAllRoles() → raw SQL   │ │   active roles
 │  │      ↓             │   └───────────────────────────┘ │

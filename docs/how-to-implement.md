@@ -133,11 +133,11 @@ The always-active role is never shown in the role chooser popup since the user c
 │  │ RoleChooser      │  │ ApplicationUser     │  │
 │  │ WindowController │  │ : RoleChooserUserBase│  │
 │  │                  │  │                     │  │
-│  │ [Active Roles]   │  │ Roles (filtered) ──►│──┼── SecurityStrategy
+│  │ ViewShown (auto) │  │ Roles (filtered) ──►│──┼── SecurityStrategy
 │  │  ↓               │  │ GetAllRoles() (all) │  │   reads only active
 │  │ PopupListView    │  └─────────────────────┘  │   roles for permission
 │  │  ↓               │                           │   evaluation
-│  │ IActiveRoleFilter│◄──── AsyncLocal ──────────┤
+│  │ IActiveRoleFilter│◄─ ConcurrentDict<UserId> ─┤
 │  └──────────────────┘    RoleFilterAccessor      │
 └─────────────────────────────────────────────────┘
 ```
