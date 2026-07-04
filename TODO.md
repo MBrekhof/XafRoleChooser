@@ -1,5 +1,25 @@
 # TODO — XAF Role Chooser
 
+## P1: High — Login-Time Role Selection Redesign
+
+The redesign (RC-001..RC-004) landed on `master`: roles are chosen once at login via a popup
+interstitial (skipped when <2 optional roles), the `Roles` override is pass-through unless the
+session was narrowed (fixes the WLNCentral ROLE-001 write-loss bug), and the mid-session switch
+machinery is gone. The popup is triggered by `XafApplication.ViewShown` (not `Frame.ViewChanged`
+— views never land on the Blazor MDI main window). Plan:
+`docs/superpowers/plans/2026-07-04-login-time-role-selection.md`. Open follow-ups below.
+
+#### RC-005: Redraw flow diagram for login-time flow
+`docs/rolechooser-flow.excalidraw` still shows the mid-session switch. Redraw for the
+login-time interstitial flow. Excalidraw MCP canvas at localhost:3000.
+
+#### RC-006: Role filter is per-user, not per-session
+`RoleFilterAccessor` keys `IActiveRoleFilter` by user ID, so a second concurrent login by the
+same user re-runs `Initialize` and re-widens a narrowed first session back to full roles. Not
+escalation (user owns the roles) but makes narrowing unreliable for multi-session users. Fix
+direction: key by (user, session/circuit) — needs a session identity that survives Blazor
+Server async boundaries.
+
 ## Phase 1: Core Module — COMPLETE
 - [x] Create `RoleChooser` project (net8.0, DevExpress.ExpressApp + Security refs)
 - [x] Add to solution `XafRoleChooser.slnx`

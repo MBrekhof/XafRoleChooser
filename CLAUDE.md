@@ -34,17 +34,15 @@ dotnet test tests/XafRoleChooser.Playwright/
 
 Security filtering works by overriding `PermissionPolicyUser.Roles` (virtual) in `RoleChooserUserBase`. The override filters roles via `RoleFilterAccessor` (`ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by user ID). With `PermissionsReloadMode.NoCache`, permissions are re-evaluated per DbContext using only active roles.
 
-Key flow: Login → `RoleChooserModule.LoggedOn` initializes filter → User clicks "Active Roles" (Tools tab) → PopupWindowShowAction shows role list with row-selection checkboxes → On Accept, selected rows = active roles via `PopupWindowViewSelectedObjects` → `SetActiveRoles()` + `ReloadPermissions()` → Close all tabs → Recreate navigation → Navigate to startup item.
-
-Tab closing on role switch works cross-platform via reflection: Blazor uses `BlazorWindow.Close()` via `MainWindow.MdiChildWindows`, WinForms uses `ShowViewStrategy.Inspectors`.
+Key flow: Login → `LoggedOn` initializes filter (all roles active) → main window shows → chooser popup auto-appears (skipped if <2 optional roles) → Accept: selected rows = active roles → `SetActiveRoles()` + `ReloadPermissions()` → recreate navigation → startup view. No mid-session switching; `Roles` override is pass-through unless the session was narrowed.
 
 Note: XAF Blazor renders booleans as display-only SVGs in popup ListViews, so inline editing doesn't work. Row selection is used instead. `ActiveRoleFilter` has an optional logger (debug logging removed from `IsRoleActive` to avoid spam). `AlwaysActiveRoleName` is cached on `IActiveRoleFilter` during `Initialize()`.
 
-Consuming apps must: (1) inherit user from `RoleChooserUserBase`, (2) call `services.AddRoleChooser()`, (3) register `.Add<RoleChooserModule>()`, (4) assign **every user** the always-active role ("Default") — without it `AlwaysActiveRoleId` is null and role switching can strip the user of all access (only logout/login recovers); the module does not validate this.
+Consuming apps must: (1) inherit user from `RoleChooserUserBase`, (2) call `services.AddRoleChooser()`, (3) register `.Add<RoleChooserModule>()`, (4) assign **every user** the always-active role ("Default") — without it `AlwaysActiveRoleId` is null and the login-time selection can strip the user of all access (only logout/login recovers); the module does not validate this.
 
 ## Demo Business Entities
 
-The demo app includes sample entities with role-based permissions to demonstrate role switching:
+The demo app includes sample entities with role-based permissions to demonstrate how the active-role selection affects data access:
 
 - **Company** (CRM group) — accessible to all roles
 - **Employee** (HR group) — HR Manager role
@@ -55,9 +53,10 @@ The demo app includes sample entities with role-based permissions to demonstrate
 
 ## Test Users (empty passwords)
 
-- **Admin**: Default, Administrators, HR Manager, Project Manager, Sales, Finance
-- **User**: Default only
-- **MultiRole**: Default, Administrators, HR Manager, Project Manager, Sales, Finance
+- **Admin**: Default, Administrators, HR Manager, Project Manager, Sales, Finance (chooser appears)
+- **MultiRole**: Default, Administrators, HR Manager, Project Manager, Sales, Finance (chooser appears)
+- **User**: Default only (chooser skipped)
+- **SingleRole**: Default, Sales (chooser skipped, both active)
 
 ## Database
 

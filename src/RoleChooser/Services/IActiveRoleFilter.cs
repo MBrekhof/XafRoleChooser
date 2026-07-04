@@ -40,4 +40,16 @@ public interface IActiveRoleFilter
     /// Check if a specific role is currently active (or is the always-active role).
     /// </summary>
     bool IsRoleActive(Guid roleId);
+
+    /// <summary>
+    /// True only when the user narrowed their roles (active set is a strict subset
+    /// of available roles). When false, the Roles override must return the real
+    /// tracked collection so M2M role assignment writes persist.
+    /// </summary>
+    bool IsFiltering { get; }
+
+    /// <summary>
+    /// True once the user has made (or skipped past) their session role selection.
+    /// </summary>
+    bool SelectionMade { get; }
 }

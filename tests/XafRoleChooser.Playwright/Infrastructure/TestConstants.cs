@@ -6,7 +6,9 @@ public static class TestConstants
     public const string AdminUser = "Admin";
     public const string MultiRoleUser = "MultiRole";
     public const string RegularUser = "User";
+    public const string SingleRoleUser = "SingleRole";
     public const string EmptyPassword = "";
+    public const string NavDefault = "Default";
     public const int DefaultTimeout = 30000;
 
     // Role names (as shown in the role chooser popup)
