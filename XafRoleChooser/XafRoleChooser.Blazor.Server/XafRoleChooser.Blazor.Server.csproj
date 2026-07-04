@@ -17,16 +17,16 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="DevExpress.Drawing.Skia" Version="25.2.3" />
-    <PackageReference Include="DevExpress.ExpressApp.Api.EFCore.All" Version="25.2.3" />
-    <PackageReference Include="DevExpress.ExpressApp.Blazor" Version="25.2.3" />
-    <PackageReference Include="DevExpress.ExpressApp.CodeAnalysis" Version="25.2.3" />
-    <PackageReference Include="DevExpress.ExpressApp.Dashboards.Blazor" Version="25.2.3" />
-    <PackageReference Include="DevExpress.ExpressApp.FileAttachment.Blazor" Version="25.2.3" />
-    <PackageReference Include="DevExpress.ExpressApp.Notifications.Blazor" Version="25.2.3" />
-    <PackageReference Include="DevExpress.ExpressApp.Office.Blazor" Version="25.2.3" />
-    <PackageReference Include="DevExpress.ExpressApp.Validation" Version="25.2.3" />
-    <PackageReference Include="DevExpress.ExpressApp.Validation.Blazor" Version="25.2.3" />
+    <PackageReference Include="DevExpress.Drawing.Skia" Version="25.2.5" />
+    <PackageReference Include="DevExpress.ExpressApp.Api.EFCore.All" Version="25.2.5" />
+    <PackageReference Include="DevExpress.ExpressApp.Blazor" Version="25.2.5" />
+    <PackageReference Include="DevExpress.ExpressApp.CodeAnalysis" Version="25.2.5" />
+    <PackageReference Include="DevExpress.ExpressApp.Dashboards.Blazor" Version="25.2.5" />
+    <PackageReference Include="DevExpress.ExpressApp.FileAttachment.Blazor" Version="25.2.5" />
+    <PackageReference Include="DevExpress.ExpressApp.Notifications.Blazor" Version="25.2.5" />
+    <PackageReference Include="DevExpress.ExpressApp.Office.Blazor" Version="25.2.5" />
+    <PackageReference Include="DevExpress.ExpressApp.Validation" Version="25.2.5" />
+    <PackageReference Include="DevExpress.ExpressApp.Validation.Blazor" Version="25.2.5" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />

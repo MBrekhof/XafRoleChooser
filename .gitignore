@@ -42,3 +42,6 @@ error*.png
 
 ## Machine-local agent memory (never commit)
 .claude/agent-memory/
+
+## DevExpress project-upgrade backups
+*.csproj.bak
