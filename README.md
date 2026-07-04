@@ -4,7 +4,7 @@
 
 Built with .NET 8 | DevExpress XAF v25.2 | EF Core | SQL Server
 
-![RoleChooser Flow](docs/rolechooser-flow.png)
+![RoleChooser Flow — role selection happens once, right after login](docs/rolechooser-flow.png)
 
 ---
 
@@ -18,7 +18,7 @@ This creates real problems in several scenarios:
 
 - **Security-conscious environments where elevated roles should only be activated when needed.** This is the same principle behind `sudo` on Unix systems — you operate with normal privileges by default and explicitly escalate only when required. XAF offers no equivalent.
 
-- **Testing and auditing.** When verifying what a user can see or do with a specific combination of roles, the only option today is to modify role assignments in the database, which is disruptive and error-prone. With Role Chooser, a user can toggle roles on and off in real time to verify behavior.
+- **Testing and auditing.** When verifying what a user can see or do with a specific combination of roles, the only option today is to modify role assignments in the database, which is disruptive and error-prone. With Role Chooser, a user can choose which of their assigned roles to activate right at login, then re-login to try a different combination — no database edits needed.
 
 - **Compliance scenarios requiring the principle of least privilege.** Regulatory frameworks (SOX, HIPAA, ISO 27001) often mandate that users operate with the minimum permissions necessary. Always-on roles make this difficult to enforce or demonstrate.
 
@@ -30,23 +30,25 @@ XAF Role Chooser solves all of these by letting users selectively activate their
 
 ### User Experience
 
-1. The user logs in normally. Only the **"Default"** role is active.
-2. A toolbar button labeled **"Active Roles"** appears in the main window.
-3. Clicking it opens a popup with all assigned roles (except Default) displayed as checkboxes.
-4. The user selects which roles to activate and clicks **OK**.
-5. Permissions update immediately — no restart or re-login is needed.
+1. The user logs in normally.
+2. If they have **two or more** optional roles (any role besides "Default"), a popup listing those roles appears automatically, before they start working.
+3. The user selects which roles to activate for the session and clicks **Accept** — or clicks **Cancel** to keep all roles active.
+4. If the user has fewer than two optional roles, the popup is skipped and all roles are active.
+5. The choice is final for the session. To try a different combination, the user logs out and back in — there is no mid-session switching.
 
 ### Technical Mechanism
 
-The module works by intercepting the point where XAF reads a user's roles for permission evaluation:
+The module works by intercepting the point where XAF reads a user's roles for permission evaluation, and by showing the chooser once, automatically, right after login:
 
-- **`RoleChooserUserBase`** inherits from `PermissionPolicyUser` and overrides the `Roles` property. In EF Core, this property is virtual, which makes the override possible. The overridden getter returns only the roles that are currently marked as active, rather than all assigned roles.
+- **`RoleChooserUserBase`** inherits from `PermissionPolicyUser` and overrides the `Roles` property. In EF Core, this property is virtual, which makes the override possible. The overridden getter is a **pass-through** to the live tracked collection unless the user actually narrowed their session selection (deselected at least one optional role) — only then does it return a filtered, detached snapshot. This is what lets role assignment edits (Link/Unlink) on the User DetailView persist normally in an all-roles session.
+
+- **`RoleChooserWindowController`** subscribes to `XafApplication.ViewShown` and shows the popup on the first view shown after login, then unsubscribes. (`Window.ViewChanged` doesn't work for this: in XAF Blazor's tabbed MDI, views land on MDI child windows, never on the main window.)
 
 - **`RoleFilterAccessor`** uses a `ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by user ID to provide thread-safe access to the active role filter. This is necessary because EF Core entities are not created through dependency injection, and `AsyncLocal<T>` does not survive Blazor Server's async boundaries. The dictionary lookup ensures the correct filter is used regardless of thread context.
 
-- **`PermissionsReloadMode.NoCache`** ensures that the security system re-evaluates permissions on every `DbContext` operation rather than caching them for the session. This is what makes role changes take effect immediately without re-login. This is the default mode in XAF, so no configuration is typically needed.
+- **`PermissionsReloadMode.NoCache`** ensures that the security system re-evaluates permissions on every `DbContext` operation rather than caching them for the session. This is what makes the login-time role selection take effect immediately once accepted, instead of requiring a fresh login to apply. This is the default mode in XAF, so no configuration is typically needed.
 
-- **`SecuritySystem.ReloadPermissions()`** is called when the user clicks Apply in the role chooser popup. This forces the security system to immediately re-read the (now filtered) roles and recalculate all permissions.
+- **`SecuritySystem.ReloadPermissions()`** is called when the user clicks **Accept** in the chooser popup. This forces the security system to immediately re-read the (now filtered) roles and recalculate all permissions. Cancelling doesn't need it — all roles were already active since login.
 
 ---
 
@@ -194,13 +196,14 @@ dotnet run --project XafRoleChooser/XafRoleChooser.Blazor.Server
 
 The demo application seeds the following users. All passwords are empty.
 
-| User | Roles |
-|---|---|
-| **Admin** | Default, Administrators, HR Manager, Project Manager, Sales, Finance |
-| **User** | Default only |
-| **MultiRole** | Default, Administrators, HR Manager, Project Manager, Sales, Finance |
+| User | Roles | Chooser |
+|---|---|---|
+| **Admin** | Default, Administrators, HR Manager, Project Manager, Sales, Finance | Appears (5 optional roles) |
+| **MultiRole** | Default, Administrators, HR Manager, Project Manager, Sales, Finance | Appears (5 optional roles) |
+| **User** | Default only | Skipped — only Default active |
+| **SingleRole** | Default, Sales | Skipped — both active (only 1 optional role) |
 
-Log in as **MultiRole** to get the full experience — you will see all roles available in the role chooser popup and can toggle them to observe how the UI and data access change in real time.
+Log in as **MultiRole** to get the full experience — the chooser will show all 5 optional roles at login. Select a subset and accept to see navigation and data access reflect only those roles for the rest of the session; log out and back in to try a different combination. Log in as **SingleRole** or **User** to see the chooser skipped entirely.
 
 ---
 
@@ -229,7 +232,7 @@ The tests require a running instance of the Blazor Server application and a seed
 |---|---|
 | Override `Roles` property | This is the only reliable interception point. XAF has no public API to filter roles before permission evaluation. Because EF Core makes navigation properties virtual, the override works cleanly without reflection or patching. |
 | `ConcurrentDictionary` accessor | Entities loaded by EF Core are not created through dependency injection. `AsyncLocal<T>` does not survive Blazor Server's async boundaries, so a `ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by user ID is used instead. |
-| `PermissionsReloadMode.NoCache` requirement | Ensures permissions are re-read per `DbContext` operation, picking up role filter changes immediately. Without this, the security system would cache permissions from login time and role changes would have no effect until the next login. |
+| `PermissionsReloadMode.NoCache` requirement | Ensures permissions are re-read per `DbContext` operation, picking up the login-time role selection immediately once accepted. Without this, the `ReloadPermissions()` call the chooser makes would have no effect, and the user would keep the full pre-selection permission set for the whole session. |
 | No role dependencies | YAGNI. Each role is an independent toggle. If a project needs role dependencies (e.g., "activating Manager also activates Employee"), that logic can be layered on top of the module without modifying it. |
 | `PopupWindowShowAction` | This is the standard XAF pattern for modal popups. It works identically on both Blazor Server and WinForms without any platform-specific code, which keeps the module cross-platform with zero conditional compilation. |
 
