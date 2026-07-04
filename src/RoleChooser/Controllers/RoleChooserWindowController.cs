@@ -3,20 +3,26 @@ using DevExpress.ExpressApp;
 using DevExpress.ExpressApp.Actions;
 using DevExpress.ExpressApp.Security;
 using DevExpress.ExpressApp.SystemModule;
-using DevExpress.Persistent.BaseImpl.EF.PermissionPolicy;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RoleChooser.BusinessObjects;
-using RoleChooser.Security;
 using RoleChooser.Services;
 
 namespace RoleChooser.Controllers;
 
+/// <summary>
+/// Shows the role-selection popup once, right after login (before the user
+/// starts working), when the user has two or more optional roles. Selection
+/// is per-session; changing roles afterwards requires re-login.
+/// </summary>
 public class RoleChooserWindowController : WindowController
 {
+    private const string LoginTimeOnlyKey = "RoleChooser.LoginTimeOnly";
+
     private PopupWindowShowAction _chooseRolesAction;
     private IActiveRoleFilter? _roleFilter;
     private ILogger<RoleChooserWindowController>? _logger;
+    private bool _popupShown;
 
     public RoleChooserWindowController()
     {
@@ -37,13 +43,75 @@ public class RoleChooserWindowController : WindowController
         base.OnActivated();
         _roleFilter = Application.ServiceProvider.GetService<IActiveRoleFilter>();
         _logger = Application.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger<RoleChooserWindowController>();
+        UpdateActionActive();
+        Window.ViewChanged += Window_ViewChanged;
+    }
+
+    protected override void OnDeactivated()
+    {
+        Window.ViewChanged -= Window_ViewChanged;
+        _roleFilter = null;
+        _logger = null;
+        base.OnDeactivated();
+    }
+
+    private void UpdateActionActive()
+    {
+        _chooseRolesAction.Active.SetItemValue(LoginTimeOnlyKey,
+            _roleFilter is { SelectionMade: false } && _roleFilter.AvailableRoles.Count >= 2);
+    }
+
+    private void Window_ViewChanged(object? sender, ViewChangedEventArgs e)
+    {
+        if (_popupShown || Window.View == null) return;
+        if (_roleFilter is not { SelectionMade: false } || _roleFilter.AvailableRoles.Count < 2)
+        {
+            _logger?.LogInformation("Login-time chooser skipped — SelectionMade: {SelectionMade}, optional roles: {Count}",
+                _roleFilter?.SelectionMade, _roleFilter?.AvailableRoles.Count ?? 0);
+            _popupShown = true;
+            return;
+        }
+
+        _popupShown = true;
+        _logger?.LogInformation("Showing login-time role chooser — {Count} optional roles", _roleFilter.AvailableRoles.Count);
+        ShowChooserPopup();
+    }
+
+    /// <summary>
+    /// Shows the chooser popup platform-agnostically. Mirrors the generic core of
+    /// DevExpress's Blazor PopupWindowShowActionBinding.ShowPopupWindow (verified
+    /// against installed source, v25.2): GetPopupWindowParams() wires the
+    /// DialogController's Accepting event to this action's Execute handler.
+    /// </summary>
+    private void ShowChooserPopup()
+    {
+        var args = _chooseRolesAction.GetPopupWindowParams();
+        if (args.View == null) return;
+
+        // Cancel = "keep all roles" — counts as the session selection.
+        args.DialogController.Cancelling += (s, e) => ConfirmAllRoles();
+
+        var svp = new ShowViewParameters(args.View)
+        {
+            TargetWindow = TargetWindow.NewModalWindow,
+            CreateAllControllers = true
+        };
+        svp.Controllers.AddRange(args.DialogController.Controllers);
+        svp.Controllers.Add(args.DialogController);
+        Application.ShowViewStrategy.ShowView(svp, new ShowViewSource(Frame, _chooseRolesAction));
+    }
+
+    private void ConfirmAllRoles()
+    {
+        if (_roleFilter == null) return;
+        _roleFilter.SetActiveRoles(_roleFilter.AvailableRoles.Select(r => r.Id));
+        UpdateActionActive();
+        _logger?.LogInformation("Chooser cancelled — all {Count} roles confirmed active", _roleFilter.AvailableRoles.Count);
     }
 
     private void ChooseRolesAction_CustomizePopupWindowParams(object sender, CustomizePopupWindowParamsEventArgs e)
     {
         if (_roleFilter == null) return;
-
-        _logger?.LogInformation("CustomizePopupWindowParams — {Count} available roles", _roleFilter.AvailableRoles.Count);
 
         var os = Application.CreateObjectSpace(typeof(ActiveRoleSelection));
         var items = new BindingList<ActiveRoleSelection>();
@@ -60,11 +128,11 @@ public class RoleChooserWindowController : WindowController
         // NonPersistentObjectSpace needs ObjectsGetting to provide objects for ListView
         if (os is NonPersistentObjectSpace npOs)
         {
-            npOs.ObjectsGetting += (s, args) =>
+            npOs.ObjectsGetting += (s, argsGetting) =>
             {
-                if (args.ObjectType == typeof(ActiveRoleSelection))
+                if (argsGetting.ObjectType == typeof(ActiveRoleSelection))
                 {
-                    args.Objects = items;
+                    argsGetting.Objects = items;
                 }
             };
         }
@@ -81,105 +149,31 @@ public class RoleChooserWindowController : WindowController
         var selectedItems = e.PopupWindowViewSelectedObjects.Cast<ActiveRoleSelection>().ToList();
         var selectedRoleIds = selectedItems.Select(i => i.RoleId).ToList();
 
-        // Build before/after summary using ActiveRoleIds directly (avoids IsRoleActive log spam)
-        var previousNames = _roleFilter.AvailableRoles
-            .Where(r => _roleFilter.ActiveRoleIds.Contains(r.Id))
-            .Select(r => r.Name).ToList();
-        var selectedNames = selectedItems.Select(i => i.RoleName).ToList();
-
-        _logger?.LogInformation(
-            "Role switch — Active: [{ActiveRoles}] | Deactivated: [{Deactivated}] | Newly activated: [{Activated}] | Always-active: {AlwaysActive}",
-            string.Join(", ", selectedNames),
-            string.Join(", ", previousNames.Except(selectedNames)),
-            string.Join(", ", selectedNames.Except(previousNames)),
+        _logger?.LogInformation("Session roles selected — Active: [{ActiveRoles}] | Always-active: {AlwaysActive}",
+            string.Join(", ", selectedItems.Select(i => i.RoleName)),
             _roleFilter.AlwaysActiveRoleName ?? "(none)");
 
-        // Cache references before CloseAllTabs — closing tabs can deactivate the controller
+        // Capture refs before any view churn — closing/replacing views can deactivate this controller.
         var app = Application;
-        var frame = Frame;
-        var window = Window;
-        var navController = frame?.GetController<ShowNavigationItemController>();
+        var navController = Frame?.GetController<ShowNavigationItemController>();
 
         _roleFilter.SetActiveRoles(selectedRoleIds);
+        UpdateActionActive();
 
-        // Close all open tabs to dispose stale ObjectSpaces
-        CloseAllTabs(app, window);
-
-        // Reload permissions — new ObjectSpaces will use the updated role filter
+        // No CloseAllTabs: at login time no tabs exist yet.
         if (app?.Security is ISecurityStrategyBase securityStrategy)
         {
             securityStrategy.ReloadPermissions();
-            _logger?.LogInformation("Execute — ReloadPermissions called");
         }
 
-        // Recreate navigation items so the nav tree reflects the new permissions
         if (navController != null)
         {
             navController.RecreateNavigationItems();
-            _logger?.LogInformation("Execute — Navigation items recreated");
-
             var startupItem = navController.GetStartupNavigationItem();
             if (startupItem != null)
             {
                 navController.ShowNavigationItemAction.DoExecute(startupItem);
-                _logger?.LogInformation("Execute — Navigated to startup item");
             }
         }
-        else if (frame?.View != null)
-        {
-            frame.View.ObjectSpace.Refresh();
-        }
-    }
-
-    /// <summary>
-    /// Closes all open tabs/documents to prevent stale ObjectSpaces after role switch.
-    /// Blazor: BlazorMdiShowViewStrategy.CloseAllWindows() (closes Views + disposes ObjectSpaces).
-    /// WinForms: ShowViewStrategy.Inspectors — close child windows only.
-    /// </summary>
-    private void CloseAllTabs(XafApplication? app, Window? window)
-    {
-        var template = window?.Template;
-        if (template == null) return;
-
-        // Blazor: close each MdiChildWindow via BlazorWindow.Close() which calls
-        // View.Close(false) — properly disposes ObjectSpaces and fires template events.
-        // We access MainWindow.MdiChildWindows and call Close() on each synchronously.
-        if (window is object blazorMainWindow)
-        {
-            var mdiChildProp = blazorMainWindow.GetType().GetProperty("MdiChildWindows");
-            if (mdiChildProp?.GetValue(blazorMainWindow) is System.Collections.IList mdiChildren && mdiChildren.Count > 0)
-            {
-                var clone = mdiChildren.Cast<object>().ToList();
-                foreach (var child in clone)
-                {
-                    child.GetType().GetMethod("Close", Type.EmptyTypes)?.Invoke(child, null);
-                }
-                _logger?.LogInformation("Execute — Closed {Count} MDI child windows (Blazor)", clone.Count);
-                return;
-            }
-        }
-
-        // WinForms: close inspector windows (child tabs) via ShowViewStrategy.Inspectors
-        if (app != null)
-        {
-            var winStrategy = app.ShowViewStrategy;
-            var inspectorsProp = winStrategy?.GetType().GetProperty("Inspectors");
-            if (inspectorsProp?.GetValue(winStrategy) is System.Collections.IList inspectors)
-            {
-                var clone = inspectors.Cast<object>().ToList();
-                foreach (var inspector in clone)
-                {
-                    inspector.GetType().GetMethod("Close", Type.EmptyTypes)?.Invoke(inspector, null);
-                }
-                _logger?.LogInformation("Execute — Closed {Count} inspector windows (WinForms)", clone.Count);
-            }
-        }
-    }
-
-    protected override void OnDeactivated()
-    {
-        base.OnDeactivated();
-        _roleFilter = null;
-        _logger = null;
     }
 }

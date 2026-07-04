@@ -50,8 +50,9 @@ public sealed class RoleChooserModule : ModuleBase
             if (strategy.PermissionsReloadMode != PermissionsReloadMode.NoCache)
             {
                 logger?.LogWarning(
-                    "RoleChooserModule requires PermissionsReloadMode.NoCache for live role switching. " +
-                    "Current mode is {Mode}. Role changes may not take effect until re-login.",
+                    "RoleChooserModule requires PermissionsReloadMode.NoCache — without it the " +
+                    "login-time role selection does not take effect (permissions stay cached from logon). " +
+                    "Current mode is {Mode}.",
                     strategy.PermissionsReloadMode);
             }
         }
