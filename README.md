@@ -31,10 +31,10 @@ XAF Role Chooser solves all of these by letting users selectively activate their
 ### User Experience
 
 1. The user logs in normally.
-2. If they have **two or more** optional roles (any role besides "Default"), a popup listing those roles appears automatically, before they start working.
-3. The user selects which roles to activate for the session and clicks **Accept** — or clicks **Cancel** to keep all roles active.
-4. If the user has fewer than two optional roles, the popup is skipped and all roles are active.
-5. The choice is final for the session. To try a different combination, the user logs out and back in — there is no mid-session switching.
+2. If they are a member of the administrator role and have **two or more** optional roles (any role besides "Default"), a popup listing those roles appears automatically, before they start working.
+3. The user selects which roles to activate and clicks **Accept** — or clicks **Cancel** to keep all roles active.
+4. Non-administrators, and users with fewer than two optional roles, skip the popup and keep all roles active.
+5. The choice is remembered per user: a browser refresh restores it silently (no re-prompt). To try a different combination, the user logs out and back in — there is no mid-session switching.
 
 ### Technical Mechanism
 
@@ -44,7 +44,9 @@ The module works by intercepting the point where XAF reads a user's roles for pe
 
 - **`RoleChooserWindowController`** subscribes to `XafApplication.ViewShown` and shows the popup on the first view shown after login, then unsubscribes. (`Window.ViewChanged` doesn't work for this: in XAF Blazor's tabbed MDI, views land on MDI child windows, never on the main window.)
 
-- **`RoleFilterAccessor`** uses a `ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by user ID to provide thread-safe access to the active role filter. This is necessary because EF Core entities are not created through dependency injection, and `AsyncLocal<T>` does not survive Blazor Server's async boundaries. The dictionary lookup ensures the correct filter is used regardless of thread context.
+- **Per-circuit filter resolution.** The `Roles` override reaches the active-role filter through the user entity's own `ObjectSpace.ServiceProvider` — the DI scope of the Blazor circuit that materialized it (`ObjectSpace` is the inherited `IObjectSpaceLink` member XAF populates on every tracked entity). Each circuit therefore has its own scoped `IActiveRoleFilter`, so concurrent logins of the same account do not clobber each other. The override narrows roles **only** when the entity is the logged-in user's own (`filter.OwnerUserId == this.ID`), never other users shown in the same session (e.g. the Users list), so administering other users' roles is unaffected. (An earlier version used a process-wide `ConcurrentDictionary` keyed by user ID; it was replaced because a single per-user entry cannot isolate concurrent sessions.)
+
+- **Admin-only, sticky selection.** The chooser is shown only to members of `AdministratorRoleName` (default "Administrators"). The chosen set is persisted server-side per user in `RoleSelectionStore` and re-applied on the next login, so a browser refresh — which tears down and rebuilds the Blazor circuit — does not re-prompt. The entry is cleared on explicit logout, so the chooser returns on the next login.
 
 - **`PermissionsReloadMode.NoCache`** ensures that the security system re-evaluates permissions on every `DbContext` operation rather than caching them for the session. This is what makes the login-time role selection take effect immediately once accepted, instead of requiring a fresh login to apply. This is the default mode in XAF, so no configuration is typically needed.
 
@@ -86,7 +88,7 @@ using RoleChooser;
 services.AddRoleChooser();
 ```
 
-This registers the `IActiveRoleFilter` service and the `RoleFilterAccessor` that makes the filter available to entities.
+This registers the scoped `IActiveRoleFilter` service, which the `Roles` override resolves per Blazor circuit from each user entity's own object space.
 
 ### 4. Register the module
 
@@ -111,37 +113,40 @@ The module will log a warning at startup if it detects a caching mode that would
 
 ## Configuration
 
-The module has a single configuration option: the name of the role that is always active and cannot be deactivated.
+The module has two configuration options:
 
 ```csharp
-// Change the always-active role name (default: "Default")
-.Add<RoleChooserModule>(m => m.AlwaysActiveRoleName = "BaseRole");
+.Add<RoleChooserModule>(m =>
+{
+    m.AlwaysActiveRoleName = "BaseRole";     // always-active role (default: "Default")
+    m.AdministratorRoleName = "SysAdmin";    // role that gates the chooser (default: "Administrators")
+});
 ```
 
-The always-active role is excluded from the role chooser popup entirely. It is always applied to the user regardless of their selections. This ensures that users always have a baseline set of permissions (typically navigation access and basic read permissions).
+- **`AlwaysActiveRoleName`** — the role that is always active and cannot be deactivated. It is excluded from the chooser popup entirely and always applied regardless of the user's selection, so users keep a baseline set of permissions (typically navigation access and basic read permissions).
+- **`AdministratorRoleName`** — only members of this role are shown the chooser; everyone else logs in with all their roles active. It must be a role that administrators actually hold and must **not** be the always-active role — otherwise no user ever matches and the chooser silently never appears.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    XAF Application                       │
-│                                                         │
-│  ┌────────────────────┐   ┌───────────────────────────┐ │
-│  │ RoleChooser         │   │ ApplicationUser            │ │
-│  │ WindowController    │   │ : RoleChooserUserBase      │ │
-│  │                    │   │                           │ │
-│  │ Auto via ViewShown │   │ Roles → filtered by ──────┼─┼──► SecurityStrategy
-│  │      ↓             │   │        IActiveRoleFilter   │ │   evaluates only
-│  │ Popup ListView     │   │ GetAllRoles() → raw SQL   │ │   active roles
-│  │      ↓             │   └───────────────────────────┘ │
-│  │ IActiveRoleFilter  │◄── ConcurrentDict<UserId> ─────┤
-│  └────────────────────┘     RoleFilterAccessor           │
-└─────────────────────────────────────────────────────────┘
+Login
+  └─ LoggedOn ─ load roles via raw SQL ─ init IActiveRoleFilter (scoped: one per circuit)
+                                       └─ re-apply sticky from RoleSelectionStore (per user id)
+
+  ViewShown ─ RoleChooserWindowController (admin-only) ─ popup ─ Accept
+                                       └─ SetActiveRoles + persist to RoleSelectionStore
+                                          + ReloadPermissions
+
+Every permission check:
+  ApplicationUser : RoleChooserUserBase
+    Roles ─ resolve IActiveRoleFilter via this.ObjectSpace.ServiceProvider (same circuit scope)
+          ─ narrow ONLY when filter.OwnerUserId == this.ID  ──►  SecurityStrategy (NoCache)
+    GetAllRoles() ─ raw SQL, unfiltered (feeds the chooser popup)
 ```
 
-The key insight is the separation between `Roles` (filtered, used by the security system) and the raw SQL role loading at login (unfiltered, used to populate the role chooser). The `NonPersistentObjectSpace.ObjectsGetting` event is used to populate the popup ListView with `ActiveRoleSelection` objects. The `ConcurrentDictionary` bridge in `RoleFilterAccessor` connects the controller layer (which has DI access) to the entity layer (which does not).
+The key insight is the separation between `Roles` (filtered, used by the security system) and the raw SQL role loading at login (unfiltered, used to populate the role chooser). The `NonPersistentObjectSpace.ObjectsGetting` event populates the popup ListView with `ActiveRoleSelection` objects. The controller layer (which has DI access) and the entity layer (which does not) meet through the entity's own `ObjectSpace.ServiceProvider` — both resolve the *same* circuit-scoped `IActiveRoleFilter`, so no process-wide bridge is needed and concurrent sessions of one account stay isolated.
 
 ---
 
@@ -151,7 +156,7 @@ The key insight is the separation between `Roles` (filtered, used by the securit
 ├── src/RoleChooser/              # Reusable module (THE deliverable)
 │   ├── BusinessObjects/          # ActiveRoleSelection (NonPersistent)
 │   ├── Controllers/              # RoleChooserWindowController
-│   ├── Security/                 # RoleChooserUserBase, RoleFilterAccessor
+│   ├── Security/                 # RoleChooserUserBase, RoleSelectionStore
 │   ├── Services/                 # IActiveRoleFilter, ActiveRoleFilter
 │   ├── RoleChooserModule.cs      # Module definition
 │   └── RoleChooserServiceExtensions.cs
@@ -232,7 +237,10 @@ The tests require a running instance of the Blazor Server application and a seed
 |---|---|
 | Login-time selection, not mid-session switching | An earlier version let users change roles anytime with live updates. It was abandoned: the `Roles` override returned a detached copy while filtering, so an admin's Link/Unlink writes on the User detail view silently vanished (a permission believed revoked was not), and switching mid-session required fragile forced-teardown of open views and navigation. Choosing once at login — before any view or cache exists — lets the override stay pass-through except in a narrowed session (so role administration works) and eliminates the teardown machinery. Cost: changing roles needs a re-login. See [`docs/how-to-implement.md`](docs/how-to-implement.md) → "Why Login-Time Selection". |
 | Override `Roles` property | This is the only reliable interception point. XAF has no public API to filter roles before permission evaluation. Because EF Core makes navigation properties virtual, the override works cleanly without reflection or patching. |
-| `ConcurrentDictionary` accessor | Entities loaded by EF Core are not created through dependency injection. `AsyncLocal<T>` does not survive Blazor Server's async boundaries, so a `ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by user ID is used instead. |
+| Resolve the filter per circuit scope | Entities loaded by EF Core aren't created through DI, and `AsyncLocal<T>` doesn't survive Blazor Server's async boundaries. The `Roles` override resolves the filter from the entity's own `ObjectSpace.ServiceProvider` (the circuit's DI scope) instead, so each session gets its own filter and concurrent logins of one account don't clobber each other. An earlier `ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by user ID was replaced for exactly that reason. |
+| Filter only the logged-in user's own object | The override narrows roles only when `filter.OwnerUserId == this.ID`. Without this, a narrowed admin viewing or editing other users would see (and could save) their roles filtered down to the admin's own selection. |
+| Chooser is admin-only | Reduced-role operation targets power users (testing, least-privilege, sudo-style escalation), so the popup is gated to members of `AdministratorRoleName`; ordinary users log in with all roles and are never prompted. |
+| Sticky selection, server-side per user | A browser refresh rebuilds the Blazor circuit, which would otherwise re-show the chooser. The last selection is persisted server-side (keyed by user id) and re-applied on login so refresh is transparent — kept server-side rather than in a cookie so it can't be altered client-side; cleared on explicit logout. |
 | `PermissionsReloadMode.NoCache` requirement | Ensures permissions are re-read per `DbContext` operation, picking up the login-time role selection immediately once accepted. Without this, the `ReloadPermissions()` call the chooser makes would have no effect, and the user would keep the full pre-selection permission set for the whole session. |
 | No role dependencies | YAGNI. Each role is an independent toggle. If a project needs role dependencies (e.g., "activating Manager also activates Employee"), that logic can be layered on top of the module without modifying it. |
 | `PopupWindowShowAction` | This is the standard XAF pattern for modal popups. It works identically on both Blazor Server and WinForms without any platform-specific code, which keeps the module cross-platform with zero conditional compilation. |
