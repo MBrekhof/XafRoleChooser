@@ -239,6 +239,16 @@ The tests require a running instance of the Blazor Server application and a seed
 
 ---
 
+## Limitations & Known Behavior
+
+The active-role selection is a **login-time** choice, remembered **server-side, per user** (not in a cookie or browser storage). A few consequences are worth knowing:
+
+- **A newly-granted role won't appear until the user logs off and back on.** The last selection is remembered per user and re-applied silently on the next login, so a browser refresh doesn't re-prompt. It is *not* reconciled against the user's current role membership — if an administrator grants a user a new role, it stays inactive and the chooser won't re-offer it until that user explicitly logs off and logs in again. Because the state is server-side and keyed by user id, clearing browser history/cookies (or switching machines) does **not** reset it; only an in-app logout or an application restart does.
+- **Narrowing applies to the interactive (Blazor) session only.** It is not applied to stateless Web API / OData requests, which use the user's full role set.
+- **Concurrent sessions of the same account share one selection.** Logging out of one session resets the selection for all live sessions of that account (their chooser reappears on the next refresh).
+
+---
+
 ## Requirements
 
 - **.NET 8.0** or later
