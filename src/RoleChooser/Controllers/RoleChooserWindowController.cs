@@ -6,14 +6,16 @@ using DevExpress.ExpressApp.SystemModule;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RoleChooser.BusinessObjects;
+using RoleChooser.Security;
 using RoleChooser.Services;
 
 namespace RoleChooser.Controllers;
 
 /// <summary>
-/// Shows the role-selection popup once, right after login (before the user
-/// starts working), when the user has two or more optional roles. Selection
-/// is per-session; changing roles afterwards requires re-login.
+/// Shows the role-selection popup once, right after login, when the user is a member of the
+/// administrator role and has two or more optional roles. The selection is persisted per user
+/// (<see cref="RoleSelectionStore"/>) so a browser refresh restores it silently instead of
+/// re-prompting; it is reset on an explicit logout. Changing roles otherwise requires re-login.
 /// </summary>
 public class RoleChooserWindowController : WindowController
 {
@@ -65,7 +67,7 @@ public class RoleChooserWindowController : WindowController
     private void UpdateActionActive()
     {
         _chooseRolesAction.Active.SetItemValue(LoginTimeOnlyKey,
-            _roleFilter is { SelectionMade: false } && _roleFilter.AvailableRoles.Count >= 2);
+            _roleFilter is { SelectionMade: false, ChooserEnabled: true } && _roleFilter.AvailableRoles.Count >= 2);
     }
 
     private void Application_ViewShown(object? sender, ViewShownEventArgs e)
@@ -76,10 +78,10 @@ public class RoleChooserWindowController : WindowController
     private void TryShowLoginTimeChooser()
     {
         if (_popupShown) return;
-        if (_roleFilter is not { SelectionMade: false } || _roleFilter.AvailableRoles.Count < 2)
+        if (_roleFilter is not { SelectionMade: false, ChooserEnabled: true } || _roleFilter.AvailableRoles.Count < 2)
         {
-            _logger?.LogInformation("Login-time chooser skipped — SelectionMade: {SelectionMade}, optional roles: {Count}",
-                _roleFilter?.SelectionMade, _roleFilter?.AvailableRoles.Count ?? 0);
+            _logger?.LogInformation("Login-time chooser skipped — SelectionMade: {SelectionMade}, ChooserEnabled: {ChooserEnabled}, optional roles: {Count}",
+                _roleFilter?.SelectionMade, _roleFilter?.ChooserEnabled, _roleFilter?.AvailableRoles.Count ?? 0);
             MarkShownAndUnsubscribe();
             return;
         }
@@ -122,9 +124,23 @@ public class RoleChooserWindowController : WindowController
     private void ConfirmAllRoles()
     {
         if (_roleFilter == null) return;
-        _roleFilter.SetActiveRoles(_roleFilter.AvailableRoles.Select(r => r.Id));
+        PersistSelection(Application, _roleFilter.AvailableRoles.Select(r => r.Id));
         UpdateActionActive();
         _logger?.LogInformation("Chooser cancelled — all {Count} roles confirmed active", _roleFilter.AvailableRoles.Count);
+    }
+
+    /// <summary>
+    /// Applies the selection to the scoped filter AND records it in the per-user sticky store,
+    /// so a later circuit (browser refresh) restores it silently. Keyed by the logged-on user id.
+    /// </summary>
+    private void PersistSelection(XafApplication? app, IEnumerable<Guid> roleIds)
+    {
+        var ids = roleIds.ToList();
+        _roleFilter!.SetActiveRoles(ids);
+        if (app?.Security?.UserId is Guid userId)
+        {
+            RoleSelectionStore.Set(userId, ids);
+        }
     }
 
     private void ChooseRolesAction_CustomizePopupWindowParams(object sender, CustomizePopupWindowParamsEventArgs e)
@@ -171,20 +187,15 @@ public class RoleChooserWindowController : WindowController
             string.Join(", ", selectedItems.Select(i => i.RoleName)),
             _roleFilter.AlwaysActiveRoleName ?? "(none)");
 
-        // Capture refs before any view churn — closing/replacing views can deactivate this controller.
+        // Capture refs before any view churn — replacing views can deactivate this controller.
         var app = Application;
-        var window = Window;
         var navController = Frame?.GetController<ShowNavigationItemController>();
 
-        _roleFilter.SetActiveRoles(selectedRoleIds);
+        PersistSelection(app, selectedRoleIds);
         UpdateActionActive();
 
-        // Usually no tabs exist at login time — but a browser refresh rebuilds the circuit and
-        // restores the pre-refresh view(s), which render during the brief all-roles window before
-        // this selection is applied. Close them so nothing opened under the broader role set
-        // survives into the narrowed session (e.g. an Orders tab lingering after choosing HR).
-        CloseAllTabs(app, window);
-
+        // No CloseAllTabs needed: the chooser only fires at first login (sticky suppresses it on
+        // refresh), and at first login no tabs exist yet.
         if (app?.Security is ISecurityStrategyBase securityStrategy)
         {
             securityStrategy.ReloadPermissions();
@@ -198,45 +209,6 @@ public class RoleChooserWindowController : WindowController
             {
                 navController.ShowNavigationItemAction.DoExecute(startupItem);
             }
-        }
-    }
-
-    /// <summary>
-    /// Closes all open tabs/documents so no view opened under a broader role set survives a
-    /// login-time selection (matters on refresh, which restores pre-refresh views). Verified
-    /// per-platform mechanism — see the tab-closing dead-end map for the six approaches that fail.
-    /// Blazor: close each <c>MainWindow.MdiChildWindows</c> via the parameterless
-    /// <c>BlazorWindow.Close()</c> (calls <c>View.Close(false)</c>, disposes ObjectSpaces).
-    /// WinForms: close each <c>ShowViewStrategy.Inspectors</c> window via the parameterless Close.
-    /// </summary>
-    private void CloseAllTabs(XafApplication? app, Window? window)
-    {
-        if (window?.Template == null) return;
-
-        // Blazor: close each MDI child window synchronously.
-        var mdiChildProp = window.GetType().GetProperty("MdiChildWindows");
-        if (mdiChildProp?.GetValue(window) is System.Collections.IList mdiChildren && mdiChildren.Count > 0)
-        {
-            var clone = mdiChildren.Cast<object>().ToList();
-            foreach (var child in clone)
-            {
-                child.GetType().GetMethod("Close", Type.EmptyTypes)?.Invoke(child, null);
-            }
-            _logger?.LogInformation("Closed {Count} MDI child windows (Blazor) on selection", clone.Count);
-            return;
-        }
-
-        // WinForms: close inspector (child) windows. Resolve Close via GetMethod(name, EmptyTypes)
-        // to avoid AmbiguousMatchException from the overloaded Close.
-        var inspectorsProp = app?.ShowViewStrategy?.GetType().GetProperty("Inspectors");
-        if (inspectorsProp?.GetValue(app!.ShowViewStrategy) is System.Collections.IList inspectors && inspectors.Count > 0)
-        {
-            var clone = inspectors.Cast<object>().ToList();
-            foreach (var inspector in clone)
-            {
-                inspector.GetType().GetMethod("Close", Type.EmptyTypes)?.Invoke(inspector, null);
-            }
-            _logger?.LogInformation("Closed {Count} inspector windows (WinForms) on selection", clone.Count);
         }
     }
 }

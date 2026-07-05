@@ -27,11 +27,24 @@ public interface IActiveRoleFilter
     string? AlwaysActiveRoleName { get; }
 
     /// <summary>
+    /// Id of the logged-on user this filter belongs to. The Roles override applies the filter
+    /// only to this user's own object — never to other users loaded in the same session (e.g.
+    /// the Users ListView or another user's DetailView opened by an admin).
+    /// </summary>
+    Guid OwnerUserId { get; }
+
+    /// <summary>
+    /// True when this user may use the login-time chooser (i.e. is a member of the configured
+    /// administrator role). Non-admins log in with all their roles active and are never prompted.
+    /// </summary>
+    bool ChooserEnabled { get; }
+
+    /// <summary>
     /// Set the available roles for the current user. Called after login.
     /// The always-active role is passed separately (id + name) because it is intentionally
     /// excluded from <paramref name="availableRoles"/> — the chooser must not offer it.
     /// </summary>
-    void Initialize(Guid? alwaysActiveRoleId, string? alwaysActiveRoleName, IEnumerable<(Guid Id, string Name)> availableRoles);
+    void Initialize(Guid ownerUserId, Guid? alwaysActiveRoleId, string? alwaysActiveRoleName, bool chooserEnabled, IEnumerable<(Guid Id, string Name)> availableRoles);
 
     /// <summary>
     /// Update which roles are active. Does not affect the always-active role.

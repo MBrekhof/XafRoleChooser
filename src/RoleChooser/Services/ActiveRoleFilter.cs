@@ -12,6 +12,8 @@ public class ActiveRoleFilter : IActiveRoleFilter
     public IReadOnlyList<(Guid Id, string Name)> AvailableRoles => _availableRoles;
     public Guid? AlwaysActiveRoleId { get; private set; }
     public string? AlwaysActiveRoleName { get; private set; }
+    public bool ChooserEnabled { get; private set; }
+    public Guid OwnerUserId { get; private set; }
     // "Filtering" = the active set doesn't cover every available role.
     // Membership check, not a count proxy: an active set that swapped an
     // available role for an out-of-set id would have equal count but must
@@ -24,11 +26,13 @@ public class ActiveRoleFilter : IActiveRoleFilter
         _logger = logger;
     }
 
-    public void Initialize(Guid? alwaysActiveRoleId, string? alwaysActiveRoleName, IEnumerable<(Guid Id, string Name)> availableRoles)
+    public void Initialize(Guid ownerUserId, Guid? alwaysActiveRoleId, string? alwaysActiveRoleName, bool chooserEnabled, IEnumerable<(Guid Id, string Name)> availableRoles)
     {
         SelectionMade = false;
+        OwnerUserId = ownerUserId;
         AlwaysActiveRoleId = alwaysActiveRoleId;
         AlwaysActiveRoleName = alwaysActiveRoleName;
+        ChooserEnabled = chooserEnabled;
         _availableRoles = availableRoles.ToList();
         _activeRoleIds = new HashSet<Guid>(_availableRoles.Select(r => r.Id));
 

@@ -22,6 +22,12 @@ public sealed class RoleChooserModule : ModuleBase
     /// </summary>
     public string AlwaysActiveRoleName { get; set; } = "Default";
 
+    /// <summary>
+    /// Only members of this role get the login-time chooser. Everyone else logs in with all
+    /// their roles active and is never prompted. Defaults to "Administrators".
+    /// </summary>
+    public string AdministratorRoleName { get; set; } = "Administrators";
+
     public RoleChooserModule()
     {
         AdditionalExportedTypes.Add(typeof(ActiveRoleSelection));
@@ -32,6 +38,11 @@ public sealed class RoleChooserModule : ModuleBase
         base.Setup(application);
         application.SetupComplete += Application_SetupComplete;
         application.LoggedOn += Application_LoggedOn;
+        // LoggingOff (not LoggedOff) so the user id is still available — Security.Logoff() has
+        // not run yet. Fires only on an explicit logout, not on a refresh/circuit teardown
+        // (BlazorApplication.DisposeCore never calls LogOff), which is exactly what makes the
+        // sticky selection survive refreshes but reset after a real logout.
+        application.LoggingOff += Application_LoggingOff;
     }
 
     private void Application_SetupComplete(object? sender, EventArgs e)
@@ -128,15 +139,45 @@ public sealed class RoleChooserModule : ModuleBase
             }
         }
 
-        logger?.LogInformation("Loaded {TotalRoles} available roles (plus always-active: {AlwaysActiveId})",
-            availableRoles.Count, alwaysActiveRoleId);
+        // The chooser is admin-only: a user gets it only if they're a member of the configured
+        // administrator role. Everyone else keeps all their roles active and is never prompted.
+        var chooserEnabled = availableRoles.Any(r =>
+            string.Equals(r.Name, AdministratorRoleName, StringComparison.OrdinalIgnoreCase));
 
-        // This is the circuit-scoped filter instance. The Roles override resolves the SAME
-        // scoped instance via the user object's ObjectSpace.ServiceProvider — so the selection
-        // stays isolated per session (no shared user-id-keyed static). See RoleChooserUserBase.
-        filter.Initialize(alwaysActiveRoleId, alwaysActiveRoleName, availableRoles);
+        logger?.LogInformation("Loaded {TotalRoles} available roles (plus always-active: {AlwaysActiveId}); chooser enabled: {ChooserEnabled}",
+            availableRoles.Count, alwaysActiveRoleId, chooserEnabled);
 
-        logger?.LogInformation("Scoped role filter initialized for user {UserId}", userId);
+        // The Roles override resolves this SAME scoped instance via the user object's
+        // ObjectSpace.ServiceProvider (see RoleChooserUserBase).
+        filter.Initialize(userId, alwaysActiveRoleId, alwaysActiveRoleName, chooserEnabled, availableRoles);
+
+        // Sticky selection: if this admin already chose in a previous circuit (and hasn't logged
+        // out), re-apply it silently so a browser refresh doesn't re-prompt. RoleSelectionStore
+        // is keyed by user id and survives circuit teardown.
+        if (chooserEnabled && RoleSelectionStore.TryGet(userId, out var stickyRoleIds))
+        {
+            filter.SetActiveRoles(stickyRoleIds);
+            logger?.LogInformation("Applied sticky selection for user {UserId} — {Count} roles active, chooser suppressed",
+                userId, stickyRoleIds.Count);
+        }
+        else
+        {
+            logger?.LogInformation("Scoped role filter initialized for user {UserId}", userId);
+        }
+    }
+
+    private void Application_LoggingOff(object? sender, LoggingOffEventArgs e)
+    {
+        var app = (XafApplication)sender!;
+        // Runs before Security.Logoff(), so UserId is still valid. Drop the sticky selection so
+        // the next login prompts the chooser again. (If the logout is cancelled the entry is gone
+        // and the admin re-picks on their next refresh — a rare, harmless nuisance.)
+        if (app.Security?.UserId is Guid userId)
+        {
+            RoleSelectionStore.Clear(userId);
+            app.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger<RoleChooserModule>()
+                .LogInformation("Cleared sticky role selection for user {UserId} on logout", userId);
+        }
     }
 
     public override IEnumerable<ModuleUpdater> GetModuleUpdaters(IObjectSpace objectSpace, Version versionFromDB)

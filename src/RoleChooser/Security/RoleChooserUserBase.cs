@@ -23,13 +23,16 @@ public abstract class RoleChooserUserBase : PermissionPolicyUser
             // the EFCoreObjectSpace that materialized it) → its *circuit-scoped* service provider.
             // That scope is per Blazor circuit / session, so two concurrent logins of the same
             // account resolve independent filters — no process-wide static keyed by user id (RC-006).
-            // If the object space isn't available (untracked instance) or the session was never
-            // narrowed, pass through the real collection so M2M role-assignment writes persist.
             var filter = ObjectSpace?.ServiceProvider?.GetService<IActiveRoleFilter>();
-            if (filter == null || !filter.IsFiltering || allRoles is not { Count: > 0 })
+            // Only narrow the LOGGED-IN user's OWN roles. A session's filter must never touch other
+            // users loaded in that session (Users ListView rows, another user's DetailView opened by
+            // an admin) — otherwise their roles would display, and worse SAVE, filtered by the admin's
+            // own selection. Pass through the real collection when: no scoped filter, this is not the
+            // session's own user, the session wasn't narrowed, or there are no roles to filter.
+            if (filter == null || filter.OwnerUserId != this.ID || !filter.IsFiltering || allRoles is not { Count: > 0 })
             {
                 _logger?.LogDebug("Roles getter — pass-through ({Reason}) [os#{Os}], returning {Count} unfiltered roles",
-                    filter == null ? "no scoped filter" : "not filtering",
+                    filter == null ? "no scoped filter" : filter.OwnerUserId != this.ID ? "other user" : "not filtering",
                     ObjectSpace?.GetHashCode(), allRoles?.Count ?? 0);
                 return allRoles;
             }
