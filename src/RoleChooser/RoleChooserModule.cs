@@ -71,9 +71,6 @@ public sealed class RoleChooserModule : ModuleBase
 
         logger?.LogInformation("Application_LoggedOn — UserId: {UserId}", userId);
 
-        // Ensure filter accessor is null so the Roles override returns base.Roles (unfiltered)
-        RoleFilterAccessor.Current = null;
-
         Guid? alwaysActiveRoleId = null;
         var availableRoles = new List<(Guid Id, string Name)>();
 
@@ -132,14 +129,12 @@ public sealed class RoleChooserModule : ModuleBase
         logger?.LogInformation("Loaded {TotalRoles} available roles (plus always-active: {AlwaysActiveId})",
             availableRoles.Count, alwaysActiveRoleId);
 
+        // This is the circuit-scoped filter instance. The Roles override resolves the SAME
+        // scoped instance via the user object's ObjectSpace.ServiceProvider — so the selection
+        // stays isolated per session (no shared user-id-keyed static). See RoleChooserUserBase.
         filter.Initialize(alwaysActiveRoleId, availableRoles);
 
-        // Register filter by user ID (survives Blazor Server async boundaries)
-        RoleFilterAccessor.Set(userId, filter);
-        // Also set AsyncLocal for same-thread calls during initialization
-        RoleFilterAccessor.Current = filter;
-
-        logger?.LogInformation("RoleFilterAccessor set for user {UserId} — filter initialized", userId);
+        logger?.LogInformation("Scoped role filter initialized for user {UserId}", userId);
     }
 
     public override IEnumerable<ModuleUpdater> GetModuleUpdaters(IObjectSpace objectSpace, Version versionFromDB)

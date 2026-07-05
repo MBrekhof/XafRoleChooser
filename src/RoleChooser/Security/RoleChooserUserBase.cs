@@ -1,5 +1,7 @@
 using DevExpress.Persistent.BaseImpl.EF.PermissionPolicy;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RoleChooser.Services;
 
 namespace RoleChooser.Security;
 
@@ -17,20 +19,25 @@ public abstract class RoleChooserUserBase : PermissionPolicyUser
         get
         {
             var allRoles = base.Roles;
-            // Look up by user ID first (survives Blazor Server async boundaries),
-            // fall back to AsyncLocal (used during initialization)
-            var filter = RoleFilterAccessor.Get(this.ID) ?? RoleFilterAccessor.Current;
+            // Resolve the filter from THIS user's own object space (BaseObject.ObjectSpace, set by
+            // the EFCoreObjectSpace that materialized it) → its *circuit-scoped* service provider.
+            // That scope is per Blazor circuit / session, so two concurrent logins of the same
+            // account resolve independent filters — no process-wide static keyed by user id (RC-006).
+            // If the object space isn't available (untracked instance) or the session was never
+            // narrowed, pass through the real collection so M2M role-assignment writes persist.
+            var filter = ObjectSpace?.ServiceProvider?.GetService<IActiveRoleFilter>();
             if (filter == null || !filter.IsFiltering || allRoles is not { Count: > 0 })
             {
-                _logger?.LogDebug("Roles getter — pass-through, returning {Count} unfiltered roles",
-                    allRoles?.Count ?? 0);
+                _logger?.LogDebug("Roles getter — pass-through ({Reason}) [os#{Os}], returning {Count} unfiltered roles",
+                    filter == null ? "no scoped filter" : "not filtering",
+                    ObjectSpace?.GetHashCode(), allRoles?.Count ?? 0);
                 return allRoles;
             }
 
             var filtered = allRoles.Where(r => filter.IsRoleActive(r.ID)).ToList();
             var filteredNames = string.Join(", ", filtered.Select(r => r.Name));
-            _logger?.LogDebug("Roles getter — filtering {AllCount} -> {FilteredCount} roles: [{FilteredNames}]",
-                allRoles.Count, filtered.Count, filteredNames);
+            _logger?.LogDebug("Roles getter — filtering {AllCount} -> {FilteredCount} roles [os#{Os}]: [{FilteredNames}]",
+                allRoles.Count, filtered.Count, ObjectSpace?.GetHashCode(), filteredNames);
             return filtered;
         }
         set => base.Roles = value;
