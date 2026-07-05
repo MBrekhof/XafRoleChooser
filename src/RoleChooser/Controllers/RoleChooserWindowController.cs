@@ -204,11 +204,36 @@ public class RoleChooserWindowController : WindowController
         if (navController != null)
         {
             navController.RecreateNavigationItems();
-            var startupItem = navController.GetStartupNavigationItem();
-            if (startupItem != null)
+
+            // WinForms MDI opens a NEW document when a navigation item is executed — even when the
+            // target view is the already-open startup tab — producing a duplicate "Main" tab that
+            // later crashes DocumentManager layout restore ("An item with the same key has already
+            // been added ... Text: Main"). Blazor refreshes the startup view in place, so only
+            // re-execute there. On WinForms we signal consumers to refresh the open view in place.
+            if (IsWinFormsApplication(app))
             {
-                navController.ShowNavigationItemAction.DoExecute(startupItem);
+                _roleFilter.NotifySessionRolesApplied();
+            }
+            else
+            {
+                var startupItem = navController.GetStartupNavigationItem();
+                if (startupItem != null)
+                {
+                    navController.ShowNavigationItemAction.DoExecute(startupItem);
+                }
             }
         }
+    }
+
+    // Platform detection without a reference to DevExpress.ExpressApp.Win: walk the application's
+    // base types looking for WinApplication. Blazor's BlazorApplication won't match.
+    private static bool IsWinFormsApplication(XafApplication? app)
+    {
+        for (var t = app?.GetType(); t != null; t = t.BaseType)
+        {
+            if (t.FullName == "DevExpress.ExpressApp.Win.WinApplication")
+                return true;
+        }
+        return false;
     }
 }

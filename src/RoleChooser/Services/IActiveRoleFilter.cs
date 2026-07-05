@@ -67,4 +67,17 @@ public interface IActiveRoleFilter
     /// True once the user has made (or skipped past) their session role selection.
     /// </summary>
     bool SelectionMade { get; }
+
+    /// <summary>
+    /// Raised after a session role selection has been fully applied (permissions reloaded and
+    /// navigation recreated). WinForms consumers refresh their already-open views in place here,
+    /// because re-executing the startup navigation would open a duplicate MDI document/tab.
+    /// </summary>
+    event EventHandler? SessionRolesApplied;
+
+    /// <summary>
+    /// Raises <see cref="SessionRolesApplied"/>. Called by the login-time chooser once a selection
+    /// has been applied (permissions reloaded, navigation recreated).
+    /// </summary>
+    void NotifySessionRolesApplied();
 }

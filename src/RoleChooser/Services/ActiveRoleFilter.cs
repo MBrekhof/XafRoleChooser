@@ -21,6 +21,10 @@ public class ActiveRoleFilter : IActiveRoleFilter
     public bool IsFiltering => _availableRoles.Any(r => !_activeRoleIds.Contains(r.Id));
     public bool SelectionMade { get; private set; }
 
+    public event EventHandler? SessionRolesApplied;
+
+    public void NotifySessionRolesApplied() => SessionRolesApplied?.Invoke(this, EventArgs.Empty);
+
     public ActiveRoleFilter(ILogger<ActiveRoleFilter>? logger = null)
     {
         _logger = logger;
