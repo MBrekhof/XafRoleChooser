@@ -24,16 +24,13 @@ public class ActiveRoleFilter : IActiveRoleFilter
         _logger = logger;
     }
 
-    public void Initialize(Guid? alwaysActiveRoleId, IEnumerable<(Guid Id, string Name)> availableRoles)
+    public void Initialize(Guid? alwaysActiveRoleId, string? alwaysActiveRoleName, IEnumerable<(Guid Id, string Name)> availableRoles)
     {
         SelectionMade = false;
         AlwaysActiveRoleId = alwaysActiveRoleId;
+        AlwaysActiveRoleName = alwaysActiveRoleName;
         _availableRoles = availableRoles.ToList();
         _activeRoleIds = new HashSet<Guid>(_availableRoles.Select(r => r.Id));
-
-        AlwaysActiveRoleName = alwaysActiveRoleId.HasValue
-            ? _availableRoles.FirstOrDefault(r => r.Id == alwaysActiveRoleId.Value).Name
-            : null;
 
         _logger?.LogInformation("Initialize — AlwaysActiveId: {AlwaysActiveId} ({AlwaysActiveName}), Count: {Count}, Roles: [{RoleNames}]",
             alwaysActiveRoleId, AlwaysActiveRoleName ?? "(none)", _availableRoles.Count,

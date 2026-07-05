@@ -28,8 +28,10 @@ public interface IActiveRoleFilter
 
     /// <summary>
     /// Set the available roles for the current user. Called after login.
+    /// The always-active role is passed separately (id + name) because it is intentionally
+    /// excluded from <paramref name="availableRoles"/> — the chooser must not offer it.
     /// </summary>
-    void Initialize(Guid? alwaysActiveRoleId, IEnumerable<(Guid Id, string Name)> availableRoles);
+    void Initialize(Guid? alwaysActiveRoleId, string? alwaysActiveRoleName, IEnumerable<(Guid Id, string Name)> availableRoles);
 
     /// <summary>
     /// Update which roles are active. Does not affect the always-active role.

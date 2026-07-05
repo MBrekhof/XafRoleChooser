@@ -72,6 +72,7 @@ public sealed class RoleChooserModule : ModuleBase
         logger?.LogInformation("Application_LoggedOn — UserId: {UserId}", userId);
 
         Guid? alwaysActiveRoleId = null;
+        string? alwaysActiveRoleName = null;
         var availableRoles = new List<(Guid Id, string Name)>();
 
         // Use raw SQL to load roles directly from the join table.
@@ -112,6 +113,7 @@ public sealed class RoleChooserModule : ModuleBase
                     if (string.Equals(roleName, AlwaysActiveRoleName, StringComparison.OrdinalIgnoreCase))
                     {
                         alwaysActiveRoleId = roleId;
+                        alwaysActiveRoleName = roleName;
                         logger?.LogDebug("Role '{RoleName}' ({RoleId}) is the always-active role", roleName, roleId);
                     }
                     else
@@ -132,7 +134,7 @@ public sealed class RoleChooserModule : ModuleBase
         // This is the circuit-scoped filter instance. The Roles override resolves the SAME
         // scoped instance via the user object's ObjectSpace.ServiceProvider — so the selection
         // stays isolated per session (no shared user-id-keyed static). See RoleChooserUserBase.
-        filter.Initialize(alwaysActiveRoleId, availableRoles);
+        filter.Initialize(alwaysActiveRoleId, alwaysActiveRoleName, availableRoles);
 
         logger?.LogInformation("Scoped role filter initialized for user {UserId}", userId);
     }

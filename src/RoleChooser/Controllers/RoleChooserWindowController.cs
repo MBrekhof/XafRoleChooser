@@ -173,12 +173,18 @@ public class RoleChooserWindowController : WindowController
 
         // Capture refs before any view churn — closing/replacing views can deactivate this controller.
         var app = Application;
+        var window = Window;
         var navController = Frame?.GetController<ShowNavigationItemController>();
 
         _roleFilter.SetActiveRoles(selectedRoleIds);
         UpdateActionActive();
 
-        // No CloseAllTabs: at login time no tabs exist yet.
+        // Usually no tabs exist at login time — but a browser refresh rebuilds the circuit and
+        // restores the pre-refresh view(s), which render during the brief all-roles window before
+        // this selection is applied. Close them so nothing opened under the broader role set
+        // survives into the narrowed session (e.g. an Orders tab lingering after choosing HR).
+        CloseAllTabs(app, window);
+
         if (app?.Security is ISecurityStrategyBase securityStrategy)
         {
             securityStrategy.ReloadPermissions();
@@ -192,6 +198,45 @@ public class RoleChooserWindowController : WindowController
             {
                 navController.ShowNavigationItemAction.DoExecute(startupItem);
             }
+        }
+    }
+
+    /// <summary>
+    /// Closes all open tabs/documents so no view opened under a broader role set survives a
+    /// login-time selection (matters on refresh, which restores pre-refresh views). Verified
+    /// per-platform mechanism — see the tab-closing dead-end map for the six approaches that fail.
+    /// Blazor: close each <c>MainWindow.MdiChildWindows</c> via the parameterless
+    /// <c>BlazorWindow.Close()</c> (calls <c>View.Close(false)</c>, disposes ObjectSpaces).
+    /// WinForms: close each <c>ShowViewStrategy.Inspectors</c> window via the parameterless Close.
+    /// </summary>
+    private void CloseAllTabs(XafApplication? app, Window? window)
+    {
+        if (window?.Template == null) return;
+
+        // Blazor: close each MDI child window synchronously.
+        var mdiChildProp = window.GetType().GetProperty("MdiChildWindows");
+        if (mdiChildProp?.GetValue(window) is System.Collections.IList mdiChildren && mdiChildren.Count > 0)
+        {
+            var clone = mdiChildren.Cast<object>().ToList();
+            foreach (var child in clone)
+            {
+                child.GetType().GetMethod("Close", Type.EmptyTypes)?.Invoke(child, null);
+            }
+            _logger?.LogInformation("Closed {Count} MDI child windows (Blazor) on selection", clone.Count);
+            return;
+        }
+
+        // WinForms: close inspector (child) windows. Resolve Close via GetMethod(name, EmptyTypes)
+        // to avoid AmbiguousMatchException from the overloaded Close.
+        var inspectorsProp = app?.ShowViewStrategy?.GetType().GetProperty("Inspectors");
+        if (inspectorsProp?.GetValue(app!.ShowViewStrategy) is System.Collections.IList inspectors && inspectors.Count > 0)
+        {
+            var clone = inspectors.Cast<object>().ToList();
+            foreach (var inspector in clone)
+            {
+                inspector.GetType().GetMethod("Close", Type.EmptyTypes)?.Invoke(inspector, null);
+            }
+            _logger?.LogInformation("Closed {Count} inspector windows (WinForms) on selection", clone.Count);
         }
     }
 }
