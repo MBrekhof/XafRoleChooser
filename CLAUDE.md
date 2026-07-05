@@ -42,6 +42,11 @@ Note: XAF Blazor renders booleans as display-only SVGs in popup ListViews, so in
 
 Consuming apps must: (1) inherit user from `RoleChooserUserBase`, (2) call `services.AddRoleChooser()`, (3) register `.Add<RoleChooserModule>()`, (4) assign **every user** the always-active role ("Default") — without it `AlwaysActiveRoleId` is null and the login-time selection can strip the user of all access (only logout/login recovers); the module does not validate this.
 
+**Known limitations (accepted).** Surfaced by an xhigh code review and deliberately left as-is — the mechanism is on its third iteration and works; these are documented rather than fixed to avoid destabilizing it. All are consequences of the **server-side, per-user** sticky store, so a browser reset / clearing cookies does **not** reset them (the state is keyed by user id on the server) — only an in-app logout or a server restart does.
+- **Sticky is not reconciled against current role membership.** The persisted selection is re-applied on every login and suppresses the chooser (`SelectionMade=true`). If a user is granted a **new** role after their last selection, it stays inactive and the chooser won't re-offer it until they explicitly **log off and back on** (the same action XAF needs to pick up role changes anyway).
+- **Narrowing is a Blazor-session concept only.** The filter resolves from the user's circuit-scoped `ObjectSpace`; outside a circuit (Web API/OData/JWT, or any user materialized without an XAF object space) it resolves to no filter and returns **all** roles. The login-time narrowing does not extend to stateless API auth.
+- **Concurrent sessions of one account share one selection**, and an explicit logout in any one session clears it for all live sessions (their chooser reappears on next refresh). The clear runs in `LoggingOff` (a cancellable pre-event), so a cancelled logout also drops the sticky.
+
 ## Demo Business Entities
 
 The demo app includes sample entities with role-based permissions to demonstrate how the active-role selection affects data access:
