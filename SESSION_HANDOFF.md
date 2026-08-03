@@ -6,51 +6,70 @@ Also read: `TODO.md`, `CLAUDE.md`, `docs/how-to-implement.md`
 
 ## Project State
 
-**Reusable XAF module** that lets users choose which roles are active after login via a toolbar popup with row-selection checkboxes. No restart needed — permissions update live.
+**Reusable XAF module** that lets an administrator choose which of their assigned roles are
+active, **once, right after login**. The chooser is a popup that appears automatically on the
+first view shown after logon; the selection takes effect immediately (no restart) and is
+remembered per user until logout.
 
-## Current Status
+**Phase: implementation complete on Blazor + WinForms; 17/17 Playwright E2E tests pass.**
+Open work is RC-007 (WinForms multi-select parity) and RC-008 (XafNavigationHub integration
+follow-ups) — see `TODO.md`.
 
-**Phase: Implementation complete. All bugs fixed. Verified on Blazor + WinForms. 17/17 E2E tests pass. Ready to push.**
+## Current Design
 
-### Key changes since initial implementation
+Superseded designs are listed under "History" at the bottom — do not reintroduce them.
 
-- **Row selection instead of inline editing** — XAF Blazor renders boolean columns in popup ListViews as display-only SVGs. The popup now uses row-selection checkboxes (`PopupWindowViewSelectedObjects`) instead of an `IsActive` toggle column.
-- **Tab closing on role switch (both platforms)** — After accepting the role chooser, all open tabs are closed to prevent unauthorized access. Blazor: `BlazorWindow.Close()` via `MainWindow.MdiChildWindows`. WinForms: `ShowViewStrategy.Inspectors`. Both use reflection to stay platform-agnostic.
-- **Navigation rebuild** — `ShowNavigationItemController.RecreateNavigationItems()` rebuilds the nav tree after role switch, then navigates to the startup item.
-- **Company nav group renamed to CRM** — Entity name "Company" conflicted with nav group name in XAF, causing the group to not appear with IsAdministrative roles. Renamed to "CRM" in `[NavigationItem("CRM")]` and all nav permission paths.
-- **OrderLine split into separate file** — `OrderLine.cs` extracted from `Order.cs`, has `[DefaultClassOptions]` and `[NavigationItem("Sales")]`.
-- **Finance role has OrderLine_ListView nav permission** — Finance can see OrderLines in the Sales nav group.
-- **Admin user has Default role** — The always-active role is now assigned to Admin (was missing previously).
-- **ApplicationUser has [DefaultClassOptions]** — Admin can see ApplicationUser in the navigation.
-- **ActiveRoleFilter logger is optional** — Constructor uses `ILogger<ActiveRoleFilter>? logger = null`. Debug logging removed from `IsRoleActive` to avoid log spam during permission evaluation.
-- **AlwaysActiveRoleName cached on IActiveRoleFilter** — Set during `Initialize()`, used in logging without repeated lookups.
-- **Sample business entities** — Demo app includes Company, Employee, Project, Order/OrderLine, and Invoice entities with role-based permissions and realistic seed data.
-- **Serilog structured logging** — Console + File sinks throughout the RoleChooser module and Blazor Server host.
-- **Blazor Server session handling** — `RoleFilterAccessor` uses `ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by user ID (AsyncLocal fails across Blazor async boundaries).
-
-## Key Decisions Made
-
-1. **Reusable module** — standalone package at `src/RoleChooser/`
-2. **Row-selection popup** — PopupWindowShowAction with ListView; selected rows = active roles
-3. **Security mechanism** — `RoleChooserUserBase` overrides `PermissionPolicyUser.Roles` (virtual), filtering via `RoleFilterAccessor`
-4. **No restart** — `PermissionsReloadMode.NoCache` + `ReloadPermissions()` on Accept
-5. **Service registration** — `AddRoleChooser()` extension method (XAF ModuleBase has no ConfigureServices)
-6. **No platform-specific projects** — WindowController works cross-platform
-7. **Close all tabs on role switch** — Prevents security issue where open tabs remain accessible after losing permissions
-8. **CRM nav group** — Company entity uses `[NavigationItem("CRM")]` to avoid XAF nav group name conflict
+- **Login-time selection, not mid-session switching.** `RoleChooserWindowController` subscribes
+  to `XafApplication.ViewShown`, shows the popup on the first view after login, then
+  unsubscribes. (`Window.ViewChanged` does not work: in XAF Blazor's tabbed MDI, views land on
+  MDI child windows, never on the main window.) Changing the active set requires a re-login.
+- **Admin-only, and only when it is useful.** The popup appears only for members of
+  `RoleChooserModule.AdministratorRoleName` (default `"Administrators"`) who have **two or more**
+  optional roles (anything besides `AlwaysActiveRoleName`, default `"Default"`). Everyone else
+  logs in with all roles active and is never prompted.
+- **Per-circuit filter resolution.** `RoleChooserUserBase.Roles` resolves `IActiveRoleFilter`
+  from the user entity's **own** `ObjectSpace.ServiceProvider` — the DI scope of the Blazor
+  circuit that materialized it. Each circuit gets its own scoped filter, so concurrent logins of
+  one account do not clobber each other.
+- **The `Roles` override is pass-through except when narrowed.** It returns a filtered snapshot
+  only when `filter.OwnerUserId == this.ID` **and** the session actually narrowed the selection.
+  This is what keeps role Link/Unlink edits on the User DetailView persisting normally, and what
+  stops a narrowed admin from seeing (or saving) *other* users' roles filtered.
+- **Sticky selection, server-side per user.** `RoleSelectionStore` (static, keyed by user id)
+  persists the chosen set; it is re-applied silently at `LoggedOn` so a browser refresh — which
+  rebuilds the circuit — does not re-prompt, and cleared at `LoggingOff` so the chooser returns
+  on the next login.
+- **`PermissionsReloadMode.NoCache` + `SecuritySystem.ReloadPermissions()`** on Accept make the
+  selection take effect immediately. NoCache is XAF's default; the module warns at startup if a
+  caching mode is detected.
+- **Row selection, not a checkbox column.** XAF Blazor renders booleans in popup ListViews as
+  display-only SVGs, so the popup reads `PopupWindowViewSelectedObjects` rather than
+  `ActiveRoleSelection.IsActive`. This is exactly what RC-007 has to change for WinForms, where
+  the generic grid defaults to single-row select.
+- **WinForms does not re-navigate after Accept.** It raises
+  `IActiveRoleFilter.SessionRolesApplied` (via `NotifySessionRolesApplied()`) instead;
+  `NavigationHubWinController` refreshes the hub in place. Re-navigating the startup item used to
+  open a second "Main" DashboardView tab and crash DocumentManager layout restore on re-logon.
 
 ## Architecture Quick Reference
 
 | Component | Location | Purpose |
 |---|---|---|
-| `IActiveRoleFilter` | `src/RoleChooser/Services/` | Interface: get/set active role IDs per session |
-| `ActiveRoleFilter` | `src/RoleChooser/Services/` | Scoped implementation (optional logger) |
-| `ActiveRoleSelection` | `src/RoleChooser/BusinessObjects/` | NonPersistent BO for popup ListView (RoleName visible, IsActive/RoleId hidden) |
-| `RoleChooserWindowController` | `src/RoleChooser/Controllers/` | PopupWindowShowAction in toolbar, tab closing, nav rebuild |
-| `RoleChooserUserBase` | `src/RoleChooser/Security/` | Base class overriding Roles property |
-| `RoleFilterAccessor` | `src/RoleChooser/Security/` | ConcurrentDictionary-based ambient accessor |
-| `RoleChooserModule` | `src/RoleChooser/` | Module definition, LoggedOn hook |
-| `AddRoleChooser()` | `src/RoleChooser/` | DI registration extension |
+| `IActiveRoleFilter` / `ActiveRoleFilter` | `src/RoleChooser/Services/` | Scoped (per circuit) active-role set; `OwnerUserId`, `IsFiltering`, `SessionRolesApplied`. Optional logger. |
+| `ActiveRoleSelection` | `src/RoleChooser/BusinessObjects/` | NonPersistent BO backing the popup ListView |
+| `RoleChooserWindowController` | `src/RoleChooser/Controllers/` | `ViewShown` hook, `PopupWindowShowAction`, tab closing, nav rebuild |
+| `RoleChooserUserBase` | `src/RoleChooser/Security/` | Overrides `PermissionPolicyUser.Roles` (virtual under EF Core) |
+| `RoleSelectionStore` | `src/RoleChooser/Security/` | Static per-user sticky selection; set on Accept, cleared on `LoggingOff` |
+| `RoleChooserModule` | `src/RoleChooser/` | Module definition, `LoggedOn`/`LoggingOff` hooks, role-name config |
+| `AddRoleChooser()` | `src/RoleChooser/RoleChooserServiceExtensions.cs` | DI registration (XAF `ModuleBase` has no `ConfigureServices`) |
+
+## Integration Requirements
+
+A consuming app must: (1) inherit its user from `RoleChooserUserBase`, (2) call
+`services.AddRoleChooser()`, (3) register `.Add<RoleChooserModule>()`, and (4) assign **every
+user** the always-active role. Without (4), `AlwaysActiveRoleId` is null and a login-time
+selection can strip the user of all access until they log out and back in — the module does not
+validate this.
 
 ## Demo Business Objects
 
@@ -63,26 +82,47 @@ Also read: `TODO.md`, `CLAUDE.md`, `docs/how-to-implement.md`
 | OrderLine | Sales | Sales, Finance |
 | Invoice | Finance | Finance, Sales |
 
+`Company` uses `[NavigationItem("CRM")]` because the entity name collided with the nav group
+name, which stopped the group appearing for `IsAdministrative` roles. `OrderLine` lives in its
+own file with `[DefaultClassOptions]`.
+
 ## Test Users (all empty passwords)
 
-| User | Roles |
-|---|---|
-| Admin | Default, Administrators, HR Manager, Project Manager, Sales, Finance |
-| User | Default |
-| MultiRole | Default, Administrators, HR Manager, Project Manager, Sales, Finance |
+| User | Roles | Chooser |
+|---|---|---|
+| Admin | Default, Administrators, HR Manager, Project Manager, Sales, Finance | Appears |
+| MultiRole | Default, Administrators, HR Manager, Project Manager, Sales, Finance | Appears |
+| User | Default | Skipped |
+| SingleRole | Default, Sales | Skipped (only 1 optional role) |
+
+## Accepted Limitations
+
+Surfaced by an xhigh code review and deliberately left as-is; all follow from the sticky store
+being **server-side and keyed by user id**, so clearing cookies does not reset them — only an
+in-app logout or an app restart does. Detail in `CLAUDE.md` and `README.md`.
+
+- Sticky is not reconciled against current role membership: a newly-granted role stays inactive
+  until the user logs off and back on.
+- Narrowing is a Blazor-session concept only — Web API / OData / JWT requests get all roles.
+- Concurrent sessions of one account share one selection; a logout in any of them clears it for
+  all (and the clear runs in the cancellable `LoggingOff`, so a cancelled logout still drops it).
 
 ## How to Run
 
 ```bash
-docker compose up -d                    # Start SQL Server
+docker compose up -d                    # SQL Server 2022
 dotnet run --project XafRoleChooser/XafRoleChooser.Blazor.Server/XafRoleChooser.Blazor.Server.csproj
 # Install Playwright browsers (first time only):
 pwsh tests/XafRoleChooser.Playwright/bin/Debug/net8.0/playwright.ps1 install
 dotnet test tests/XafRoleChooser.Playwright/
 ```
 
-## Completed Verification
+## History — superseded, do not reintroduce
 
-1. ~~Run the app against Docker SQL Server, verify toolbar button appears and role switching works~~ -- Done
-2. ~~Run Playwright tests, fix selectors/timing for actual XAF Blazor markup~~ -- Done (17/17 pass)
-3. ~~Test WinForms frontend~~ -- Done, tab closing works via ShowViewStrategy.Inspectors
+- **Mid-session role switching via a toolbar action** (removed by RC-002). The `Roles` override
+  had to return a detached copy while filtering, so an admin's Link/Unlink writes on the User
+  DetailView silently vanished, and switching mid-session needed fragile forced teardown of open
+  views and navigation.
+- **`RoleFilterAccessor`, a process-wide `ConcurrentDictionary<Guid, IActiveRoleFilter>` keyed by
+  user id** (removed by RC-006). A single per-user entry cannot isolate concurrent sessions.
+  `AsyncLocal<T>` was tried first and does not survive Blazor Server's async boundaries.
