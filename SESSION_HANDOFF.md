@@ -18,9 +18,15 @@ WinForms** — deferred by decision on 2026-08-26; card #1190 sits in Review unt
 RC-008 (XafNavigationHub follow-ups): b) done 2026-08-26 — `SessionRolesApplied` is now raised on
 **every** platform (the Hub's Blazor component subscribes; Hub HUB-001), the Blazor startup
 re-execute stays for consumers without an in-place view; a) still open — see `TODO.md`.
-**Also found 2026-08-26 from the Hub: RC-007's `GetProperty("OptionsSelection")` throws
-`AmbiguousMatchException` on 26.1 WinForms** (the hub tab shows the exception for Admin) — fix +
-details on card #1190; this is the deferred WinForms verification, and it fails.
+**RC-007 on 26.1 WinForms (2026-08-26, found + fixed from the Hub):** `GetProperty("OptionsSelection")`
+threw `AmbiguousMatchException` (26.1 re-declares it on `GridView`); `EnableCheckBoxRowSelect` now
+walks the type chain most-derived-first (`GetProperty` helper). Verified in the Hub Win app: Admin
+logon → chooser shows the checkbox column, OK applies, hub renders, 0 exceptions. **Still to verify:
+toggling >1 role by mouse and the hub re-filtering** — synthetic mouse (mouse_event) and UIA
+don't reach the modal chooser (it is shown while the Logon action is still executing); `BM_CLICK`
+on the OK HWND works, `WM_LBUTTONDOWN/UP` posted to the grid HWND is the next thing to try
+(HWNDs via EnumChildWindows; the hex→IntPtr parse in the scratch script was wrong). Or just do it
+by hand from VS. Card #1190 stays in Review until that is seen.
 
 ## Platform (since 2026-08-26)
 

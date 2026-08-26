@@ -187,11 +187,24 @@ public class RoleChooserWindowController : WindowController
     // multi-select lookup. Reflection keeps the module free of a DevExpress.ExpressApp.Win reference.
     private static void EnableCheckBoxRowSelect(object? editor)
     {
-        var gridView = editor?.GetType().GetProperty("GridView")?.GetValue(editor);
-        var options = gridView?.GetType().GetProperty("OptionsSelection")?.GetValue(gridView);
-        var mode = options?.GetType().GetProperty("MultiSelectMode");
+        var gridView = GetProperty(editor, "GridView")?.GetValue(editor);
+        var options = GetProperty(gridView, "OptionsSelection")?.GetValue(gridView);
+        var mode = GetProperty(options, "MultiSelectMode");
         if (options == null || mode == null) return;
         mode.SetValue(options, Enum.Parse(mode.PropertyType, "CheckBoxRowSelect"));
+    }
+
+    // Most-derived declaration first. Type.GetProperty(name) throws AmbiguousMatchException when a
+    // property is re-declared with `new` and a different type down the hierarchy - DevExpress 26.1
+    // does exactly that for GridView.OptionsSelection (GridOptionsSelection over ColumnView's).
+    private static System.Reflection.PropertyInfo? GetProperty(object? obj, string name)
+    {
+        for (var t = obj?.GetType(); t != null; t = t.BaseType)
+        {
+            var p = t.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly);
+            if (p != null) return p;
+        }
+        return null;
     }
 
     private void ChooseRolesAction_Execute(object sender, PopupWindowShowActionExecuteEventArgs e)
