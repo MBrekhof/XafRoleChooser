@@ -43,6 +43,10 @@ namespace XafRoleChooser.Win
                 return 0;
             }
             DevExpress.ExpressApp.FrameworkSettings.DefaultSettingsCompatibilityMode = DevExpress.ExpressApp.FrameworkSettingsCompatibilityMode.Latest;
+            // v26.1 switched password hashing to SHA512/600K under CompatibilityMode.Latest; keep
+            // accepting SHA1 hashes so demo DBs seeded before the upgrade still log in.
+            DevExpress.Persistent.Base.PasswordCryptographer.UseSHA1_20K = true;
+            DevExpress.Persistent.Base.PasswordCryptographer.UseSHA512_600K = true;
             DevExpress.ExpressApp.Security.SecurityStrategy.AutoAssociationReferencePropertyMode = DevExpress.ExpressApp.Security.ReferenceWithoutAssociationPermissionsMode.AllMembers;
 #if EASYTEST
             DevExpress.ExpressApp.Win.EasyTest.EasyTestRemotingRegistration.Register();

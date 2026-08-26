@@ -23,7 +23,6 @@ namespace XafRoleChooser.Win
             SplashScreen = new DXSplashScreen(typeof(XafSplashScreen), new DefaultOverlayFormOptions());
             ApplicationName = "XafRoleChooser";
             CheckCompatibilityType = DevExpress.ExpressApp.CheckCompatibilityType.DatabaseSchema;
-            UseOldTemplates = false;
             DatabaseVersionMismatch += XafRoleChooserWindowsFormsApplication_DatabaseVersionMismatch;
             CustomizeLanguagesList += XafRoleChooserWindowsFormsApplication_CustomizeLanguagesList;
         }

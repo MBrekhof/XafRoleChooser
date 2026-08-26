@@ -11,9 +11,34 @@ active, **once, right after login**. The chooser is a popup that appears automat
 first view shown after logon; the selection takes effect immediately (no restart) and is
 remembered per user until logout.
 
-**Phase: implementation complete on Blazor + WinForms; 17/17 Playwright E2E tests pass.**
-Open work is RC-007 (WinForms multi-select parity) and RC-008 (XafNavigationHub integration
-follow-ups) — see `TODO.md`.
+**Phase: implementation complete on Blazor + WinForms; 13/13 Playwright E2E tests pass on
+.NET 10 / DevExpress 26.1.4 / EF Core 10 (upgraded 2026-08-26 for WLNCentral parity).**
+RC-007 (WinForms checkbox multi-select) is coded (`1c90494`) but **not yet runtime-verified on
+WinForms** — deferred by decision on 2026-08-26; card #1190 sits in Review until that is done.
+RC-008 (XafNavigationHub follow-ups) is still open — see `TODO.md`.
+
+## Platform (since 2026-08-26)
+
+- **net10.0, DevExpress 26.1.4, EF Core 10.0.11** — matches WLNCentral, which will consume the
+  module again. DevExpress assemblies are version-named (`DevExpress.ExpressApp.v26.1.dll`), so
+  the module must always be built against the consumer's XAF major/minor.
+- 26.1 breaking changes handled in the **demo apps only** (the module needed no code change):
+  `WinApplication.UseOldTemplates` was removed (line deleted); password hashing switched to
+  SHA512/600K under `CompatibilityMode.Latest`, so both `PasswordCryptographer.UseSHA1_20K` and
+  `UseSHA512_600K` are enabled in each `Program.cs` — pre-upgrade demo DBs keep logging in.
+  A consuming app must make the same choice for its own users.
+- **XafNavigationHub** (the other consumer) is still on net8.0 / 25.2.5. Its unmerged
+  `rolechooser` branch project-references this module and will not build until the Hub upgrades;
+  Hub `main` has no RoleChooser reference and is unaffected. Hub upgrade + rebase is Hub-side
+  work (its board: BUILD-001). .NET 8 is EOL 2026-11-10, so the Hub has to move anyway.
+- **Playwright suite is order-sensitive by design of the sticky store**: every fixture has a
+  `[TearDown]` that cancels an open chooser and logs off (`MainPage.ResetSessionAsync`), because
+  only Log Off clears `RoleSelectionStore`. Without it the first selecting test suppresses the
+  chooser for all later tests of that user (that was the state of the suite before 2026-08-26).
+- Running the Blazor demo without Docker for E2E: set
+  `ConnectionStrings__ConnectionString` to a LocalDB catalog (e.g. `Initial Catalog=XafRoleChooser261`)
+  and `ASPNETCORE_URLS=https://localhost:5001;http://localhost:5000`, start
+  `bin/Debug/net10.0/XafRoleChooser.Blazor.Server.exe` from its project dir, then `dotnet test`.
 
 ## Current Design
 
@@ -113,7 +138,7 @@ in-app logout or an app restart does. Detail in `CLAUDE.md` and `README.md`.
 docker compose up -d                    # SQL Server 2022
 dotnet run --project XafRoleChooser/XafRoleChooser.Blazor.Server/XafRoleChooser.Blazor.Server.csproj
 # Install Playwright browsers (first time only):
-pwsh tests/XafRoleChooser.Playwright/bin/Debug/net8.0/playwright.ps1 install
+pwsh tests/XafRoleChooser.Playwright/bin/Debug/net10.0/playwright.ps1 install
 dotnet test tests/XafRoleChooser.Playwright/
 ```
 

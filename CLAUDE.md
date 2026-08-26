@@ -8,7 +8,7 @@ On new session, read these files first: `SESSION_HANDOFF.md`, `TODO.md`
 
 ## Project Overview
 
-Reusable DevExpress XAF module that lets users choose which roles are active after login. Built on .NET 8, DevExpress v25.2.3, EF Core with SQL Server. Includes a demo app (Blazor Server + WinForms) and Playwright tests.
+Reusable DevExpress XAF module that lets users choose which roles are active after login. Built on .NET 10, DevExpress v26.1.4, EF Core 10 with SQL Server. Includes a demo app (Blazor Server + WinForms) and Playwright tests.
 
 ## Solution Structure
 

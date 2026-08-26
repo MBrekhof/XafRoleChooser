@@ -2,7 +2,7 @@
 
 **A reusable DevExpress XAF module that lets users choose which roles are active after login.**
 
-Built with .NET 8 | DevExpress XAF v25.2 | EF Core | SQL Server
+Built with .NET 10 | DevExpress XAF v26.1 | EF Core 10 | SQL Server
 
 ![RoleChooser Flow — role selection happens once, right after login](docs/rolechooser-flow.png)
 
@@ -180,7 +180,7 @@ The `src/RoleChooser/` directory is the reusable module — the actual deliverab
 
 ### Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Docker](https://www.docker.com/products/docker-desktop/) (for SQL Server)
 - DevExpress NuGet feed configured (requires a DevExpress license)
 
@@ -221,7 +221,7 @@ The test suite uses [Playwright for .NET](https://playwright.dev/dotnet/) to run
 dotnet build tests/XafRoleChooser.Playwright
 
 # Install Playwright browsers (first time only)
-pwsh tests/XafRoleChooser.Playwright/bin/Debug/net8.0/playwright.ps1 install
+pwsh tests/XafRoleChooser.Playwright/bin/Debug/net10.0/playwright.ps1 install
 
 # Run tests (requires the Blazor app to be running)
 dotnet test tests/XafRoleChooser.Playwright
@@ -259,8 +259,8 @@ The active-role selection is a **login-time** choice, remembered **server-side, 
 
 ## Requirements
 
-- **.NET 8.0** or later
-- **DevExpress XAF v25.2** or later (EF Core data access provider)
+- **.NET 10.0** (the module targets net10.0)
+- **DevExpress XAF v26.1.4** (EF Core data access provider). DevExpress assemblies are version-named (`DevExpress.ExpressApp.v26.1.dll`), so a consuming app must reference the **same** XAF major/minor as this module — rebuild the module against your version if it differs.
 - **SQL Server** — LocalDB, Docker, or a remote instance
 - **`PermissionsReloadMode.NoCache`** — this is the default in XAF. The module will warn at startup if a different mode is detected.
 

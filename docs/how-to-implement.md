@@ -28,7 +28,7 @@ An earlier version of this module let users change their active roles at any tim
 
 ## Prerequisites
 
-- **DevExpress XAF v25.2+** with EF Core
+- **DevExpress XAF v26.1.4** with EF Core 10 on .NET 10 — the module must be built against the same XAF major/minor as the consuming app (DevExpress assemblies are version-named).
 - **`PermissionsReloadMode.NoCache`** must be configured. The module logs a warning at startup if this is not set.
 - Your **User type must inherit from `PermissionPolicyUser`** (standard XAF security), which you will change to inherit from `RoleChooserUserBase` during integration.
 - **Every user must be assigned the always-active role** (e.g. "Default"). The module does not validate this — a user without it can end up with no active permissions at all.
