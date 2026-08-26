@@ -172,8 +172,26 @@ public class RoleChooserWindowController : WindowController
         }
 
         var listView = Application.CreateListView(os, typeof(ActiveRoleSelection), true);
+        if (IsWinFormsApplication(Application))
+        {
+            listView.ControlsCreated += (s, _) => EnableCheckBoxRowSelect(listView.Editor);
+        }
         e.View = listView;
         e.DialogController.SaveOnAccept = false;
+    }
+
+    // WinForms GridListEditor enables MultiSelect but leaves MultiSelectMode = RowSelect: a plain
+    // click replaces the selection and only Ctrl/Shift+click adds to it, so the chooser reads as
+    // single-select. Blazor's grid shows a selection-checkbox column by default; mirror that with
+    // CheckBoxRowSelect — the setting XAF's own WinForms ComboBoxListPropertyEditor uses for its
+    // multi-select lookup. Reflection keeps the module free of a DevExpress.ExpressApp.Win reference.
+    private static void EnableCheckBoxRowSelect(object? editor)
+    {
+        var gridView = editor?.GetType().GetProperty("GridView")?.GetValue(editor);
+        var options = gridView?.GetType().GetProperty("OptionsSelection")?.GetValue(gridView);
+        var mode = options?.GetType().GetProperty("MultiSelectMode");
+        if (options == null || mode == null) return;
+        mode.SetValue(options, Enum.Parse(mode.PropertyType, "CheckBoxRowSelect"));
     }
 
     private void ChooseRolesAction_Execute(object sender, PopupWindowShowActionExecuteEventArgs e)
