@@ -223,16 +223,17 @@ public class RoleChooserWindowController : WindowController
         {
             navController.RecreateNavigationItems();
 
+            // Signal consumers on every platform so an already-open startup view (e.g. a hub
+            // dashboard) can re-read permissions in place — re-executing the startup item does not
+            // recreate a view that is already showing (RC-008 b).
+            _roleFilter.NotifySessionRolesApplied();
+
             // WinForms MDI opens a NEW document when a navigation item is executed — even when the
             // target view is the already-open startup tab — producing a duplicate "Main" tab that
             // later crashes DocumentManager layout restore ("An item with the same key has already
-            // been added ... Text: Main"). Blazor refreshes the startup view in place, so only
-            // re-execute there. On WinForms we signal consumers to refresh the open view in place.
-            if (IsWinFormsApplication(app))
-            {
-                _roleFilter.NotifySessionRolesApplied();
-            }
-            else
+            // been added ... Text: Main"). So only re-execute on non-WinForms, for consumers whose
+            // startup view has no in-place refresh.
+            if (!IsWinFormsApplication(app))
             {
                 var startupItem = navController.GetStartupNavigationItem();
                 if (startupItem != null)

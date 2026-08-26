@@ -15,7 +15,12 @@ remembered per user until logout.
 .NET 10 / DevExpress 26.1.4 / EF Core 10 (upgraded 2026-08-26 for WLNCentral parity).**
 RC-007 (WinForms checkbox multi-select) is coded (`1c90494`) but **not yet runtime-verified on
 WinForms** — deferred by decision on 2026-08-26; card #1190 sits in Review until that is done.
-RC-008 (XafNavigationHub follow-ups) is still open — see `TODO.md`.
+RC-008 (XafNavigationHub follow-ups): b) done 2026-08-26 — `SessionRolesApplied` is now raised on
+**every** platform (the Hub's Blazor component subscribes; Hub HUB-001), the Blazor startup
+re-execute stays for consumers without an in-place view; a) still open — see `TODO.md`.
+**Also found 2026-08-26 from the Hub: RC-007's `GetProperty("OptionsSelection")` throws
+`AmbiguousMatchException` on 26.1 WinForms** (the hub tab shows the exception for Admin) — fix +
+details on card #1190; this is the deferred WinForms verification, and it fails.
 
 ## Platform (since 2026-08-26)
 

@@ -23,5 +23,8 @@ duplicate. Renumbered RC-007 to avoid colliding with this repo's completed RC-00
 When combining RoleChooser with [XafNavigationHub](C:\Projects\XafNavigatonHub):
 - a) Exclude the hub tab from `CloseAllTabs()` (or navigate back to it) — RoleChooser's tab
   closing bypasses NavigationHub's `HubTabController` close prevention.
-- b) Verify hub cards refresh after role switch — if the hub is the startup item, navigating to
-  it post-switch should re-read permissions automatically.
+- ~~b) Verify hub cards refresh after role switch — if the hub is the startup item, navigating to
+  it post-switch should re-read permissions automatically.~~ Verified 2026-08-26: it did NOT on
+  Blazor (re-executing the startup item does not recreate the already-open hub component).
+  Fixed Hub-side as HUB-001: `SessionRolesApplied` is now raised on every platform and the Hub's
+  Blazor component subscribes, mirroring its WinForms controller.

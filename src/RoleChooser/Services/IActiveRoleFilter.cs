@@ -70,8 +70,9 @@ public interface IActiveRoleFilter
 
     /// <summary>
     /// Raised after a session role selection has been fully applied (permissions reloaded and
-    /// navigation recreated). WinForms consumers refresh their already-open views in place here,
-    /// because re-executing the startup navigation would open a duplicate MDI document/tab.
+    /// navigation recreated), on every platform. Consumers refresh their already-open startup view
+    /// in place here: re-executing the startup navigation does not recreate a view that is already
+    /// showing (Blazor), and on WinForms it would open a duplicate MDI document/tab.
     /// </summary>
     event EventHandler? SessionRolesApplied;
 
