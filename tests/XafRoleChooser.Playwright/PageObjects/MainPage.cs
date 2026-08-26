@@ -8,8 +8,46 @@ public class MainPage : Infrastructure.XafPageBase
 
     public async Task<bool> IsLoggedIn()
     {
-        var mainView = Page.Locator(".xaf-chrome, .xaf-tabbed-mdi");
-        return await mainView.First.IsVisibleAsync();
+        // Wait rather than probe: right after Log In the Blazor circuit is still navigating
+        // (LoginPage -> / -> startup view) and an immediate IsVisible races the cold start.
+        var mainView = Page.Locator(".xaf-tabbed-mdi").First;
+        try
+        {
+            await mainView.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = Infrastructure.TestConstants.DefaultTimeout });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Per-test cleanup. The sticky role selection lives server-side per user
+    /// (RoleSelectionStore) and only an explicit Log Off clears it, so a test that leaves a
+    /// user logged in (or the chooser open) suppresses the chooser for every later test of
+    /// that user. Cancel any open chooser, then log off. Failure-safe: never fails a test.
+    /// </summary>
+    public async Task ResetSessionAsync()
+    {
+        try
+        {
+            if (Page.IsClosed) return;
+            var popup = Page.Locator("dxbl-popup-root button:has-text('Cancel'):not([dxbl-virtual-el])").First;
+            if (await popup.IsVisibleAsync())
+            {
+                await popup.ClickAsync();
+                await WaitForXafReady();
+            }
+            if (await Page.Locator("button[data-action-name='Account']").First.IsVisibleAsync())
+            {
+                await Logout();
+            }
+        }
+        catch (Exception ex) when (ex is PlaywrightException or TimeoutException)
+        {
+            // Best-effort cleanup only.
+        }
     }
 
     public async Task SelectRoleInChooser(string roleName)

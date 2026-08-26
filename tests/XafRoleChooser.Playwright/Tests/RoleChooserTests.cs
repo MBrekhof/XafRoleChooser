@@ -26,6 +26,11 @@ public class RoleChooserTests : PageTest
         await _loginPage.NavigateTo();
     }
 
+    // Log off after every test: the sticky selection is server-side per user and only an
+    // explicit Log Off clears it — otherwise the chooser is suppressed for later tests.
+    [TearDown]
+    public Task TearDown() => _mainPage.ResetSessionAsync();
+
     [Test]
     public async Task Login_MultiRole_ShowsChooserAutomatically()
     {

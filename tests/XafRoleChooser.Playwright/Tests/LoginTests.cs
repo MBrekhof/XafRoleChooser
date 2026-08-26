@@ -8,6 +8,10 @@ namespace XafRoleChooser.Playwright.Tests;
 [TestFixture]
 public class LoginTests : PageTest
 {
+    // Log off after every test so no server-side sticky selection leaks into later fixtures.
+    [TearDown]
+    public Task TearDown() => new MainPage(Page).ResetSessionAsync();
+
     [Test]
     public async Task LoginPage_ShouldBeAccessible()
     {

@@ -29,6 +29,10 @@ public class RoleSwitchingTests : PageTest
         _mainPage = new MainPage(Page);
     }
 
+    // Log off after every test so no server-side sticky selection leaks into later fixtures.
+    [TearDown]
+    public Task TearDown() => _mainPage.ResetSessionAsync();
+
     [Test]
     public async Task RoleAssignment_LinkUnlink_Persists()
     {
